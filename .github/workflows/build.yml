@@ -1,0 +1,33 @@
+name: "mvn verify"
+
+on:
+  push:
+    branches:
+      - main
+#    paths:
+#      - '.github/workflows/api-push.yml'
+#    tags:
+#      - 'gha-ci'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+#    environment: nadag-innmelding
+
+    steps:
+#    - name: Checkout repository
+#      uses: actions/checkout@v4
+#      with:
+#        submodules: true
+#        fetch-depth: 0
+
+    - name: Setup Java 24 and Maven 4.0.0-rc-3
+      uses: s4u/setup-maven-action@v1.18.0
+      with:
+        java-distribution: 'temurin'
+        java-version: '24'
+        maven-version: '4.0.0-rc-3'
+
+    - name: Build with Maven
+      run: mvn -B verify

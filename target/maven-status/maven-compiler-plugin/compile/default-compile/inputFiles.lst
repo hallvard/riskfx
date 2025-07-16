@@ -1,0 +1,17 @@
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/Battle.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/Continent.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/Dice.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/Player.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/Risk.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/RiskConfig.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/RiskListener.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/Territory.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/TurnState.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/UniformDice.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/World.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/fx/LabelListCell.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/fx/LabelProvider.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/fx/RiskController.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/fx/RiskFxApp.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/fx/TerritoryPathProvider.java
+/Users/hal/git/riskfx/src/main/java/no/hal/risk/fx/WorldView.java
