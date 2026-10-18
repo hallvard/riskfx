@@ -1,0 +1,45 @@
+== imitation
+-- default
+playing greedy: 400 games: won 188 (47%), truncated 0, 30,4 turns/game
+-- advantage
+playing greedy: 400 games: won 209 (52%), truncated 0, 31,4 turns/game
+-- 4 players
+playing greedy: 200 games: won 45 (23%), truncated 17, 130,8 turns/game
+
+== PPO runs, final results on new boards
+-- ppo-default-1
+FINAL last iteration, on new boards: 400 games: won 244 (61%), truncated 0, 28,7 turns/game
+FINAL best checkpoint, on new boards: 400 games: won 241 (60%), truncated 3, 29,4 turns/game
+-- ppo-default-2
+FINAL last iteration, on new boards: 400 games: won 296 (74%), truncated 0, 27,1 turns/game
+FINAL best checkpoint, on new boards: 400 games: won 299 (75%), truncated 0, 25,8 turns/game
+-- ppo-advantage-1
+FINAL last iteration, on new boards: 400 games: won 285 (71%), truncated 0, 25,5 turns/game
+FINAL best checkpoint, on new boards: 400 games: won 281 (70%), truncated 0, 24,7 turns/game
+-- ppo-advantage-2
+FINAL last iteration, on new boards: 400 games: won 266 (67%), truncated 0, 25,9 turns/game
+FINAL best checkpoint, on new boards: 400 games: won 281 (70%), truncated 0, 26,9 turns/game
+-- ppo-default-2-long
+FINAL last iteration, on new boards: 400 games: won 325 (81%), truncated 0, 23,7 turns/game
+FINAL best checkpoint, on new boards: 400 games: won 329 (82%), truncated 0, 24,2 turns/game
+-- ppo4-from-2p-default
+FINAL last iteration, on new boards: 300 games: won 289 (96%), truncated 1, 75,6 turns/game
+FINAL best checkpoint, on new boards: 300 games: won 288 (96%), truncated 0, 72,2 turns/game
+-- ppo4-from-2p-advantage
+FINAL last iteration, on new boards: 300 games: won 279 (93%), truncated 1, 84,6 turns/game
+FINAL best checkpoint, on new boards: 300 games: won 272 (91%), truncated 0, 86,2 turns/game
+-- ppo4-from-imitation
+FINAL last iteration, on new boards: 300 games: won 275 (92%), truncated 0, 79,3 turns/game
+FINAL best checkpoint, on new boards: 300 games: won 275 (92%), truncated 0, 79,3 turns/game
+-- ppo4-resumed2-imitation
+FINAL last iteration, on new boards: 300 games: won 293 (98%), truncated 0, 66,6 turns/game
+FINAL best checkpoint, on new boards: 300 games: won 294 (98%), truncated 0, 69,9 turns/game
+-- ppo4-resumed2-advantage
+FINAL last iteration, on new boards: 300 games: won 283 (94%), truncated 0, 74,3 turns/game
+FINAL best checkpoint, on new boards: 300 games: won 281 (94%), truncated 0, 74,4 turns/game
+
+== transfer of the 2-player networks to 4 players (no training, 300 games)
+-- default-1: start        vs greedy: 300 games: won 176 (59%), truncated 18, 133,2 turns/game
+-- default-2: start        vs greedy: 300 games: won 177 (59%), truncated 35, 132,7 turns/game
+-- advantage-1: start        vs greedy: 300 games: won 183 (61%), truncated 26, 127,0 turns/game
+-- advantage-2: start        vs greedy: 300 games: won 249 (83%), truncated 2, 105,6 turns/game

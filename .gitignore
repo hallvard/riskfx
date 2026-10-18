@@ -1,0 +1,31 @@
+# Build output of Maven (in each module, and the old one in the root)
+target/
+
+# Editors and operating system. The settings of VS Code are kept, and the rest of the directory is not.
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/*
+!.vscode/settings.json
+.DS_Store
+
+# Python, for the learner: the virtual environment (recreate it, see learner/README.md) and caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+learner/work/
+
+# Training runs in models/: the networks (*.weights) and the notes and scripts are kept,
+# and what is made again by a run, or only used while it ran, is not
+models/**/classes*/
+models/**/cp.txt
+models/**/*.log
+models/**/*.out
+models/**/progress*.txt
+models/**/*.bin
+models/**/*.bin.last
+# the networks of the experiments are kept as files, but not in git; those of the AI are in models/ itself
+models/*/*.weights

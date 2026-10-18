@@ -1,0 +1,10 @@
+[project]
+name = "risk-learner"
+version = "0.1.0"
+description = "The learner of the AI of RiskFx: PPO and imitation with PyTorch, on the games that the Java actor plays"
+requires-python = ">=3.10"
+dependencies = ["torch", "numpy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

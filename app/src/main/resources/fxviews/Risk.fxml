@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.String?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.Pane?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:id="riskPane" fx:controller="no.hal.risk.fx.RiskController">
+  <top>
+    <HBox>
+      <ComboBox fx:id="playerSelector"/>
+    </HBox>
+  </top>
+  <center>
+    <Pane fx:id="mapPane"/>
+  </center>
+  <bottom>
+    <TabPane fx:id="turnStateTabPane">
+      <tabs>
+        <Tab text="Reinforce">
+          <HBox>
+            <ComboBox fx:id="reinforceTerritorySelector"/>
+            <Button fx:id="reinforce1Action" text="1"/>
+          </HBox>
+        </Tab>
+        <Tab text="Attack">
+          <HBox>
+            <ComboBox fx:id="attackerSelector"/>
+            <ComboBox fx:id="attackerNumArmiesSelector"/>
+            <ComboBox fx:id="defenderSelector"/>
+            <ComboBox fx:id="defenderNumArmiesSelector"/>
+            <Button fx:id="attackAction" text="Attack!" onAction="#attack"/>
+            <Button fx:id="skipAttackAction" text="Fortify..." onAction="#skipAttack"/>
+          </HBox>
+        </Tab>
+        <Tab text="Fortify">
+          <HBox>
+            <ComboBox fx:id="fromSelector"/>
+            <ComboBox fx:id="toSelector"/>
+            <ComboBox fx:id="fortifyNumArmiesSelector"/>
+            <Button fx:id="fortifyAction" text="Fortify!" onAction="#fortify"/>
+            <Button fx:id="skipFortifyAction" text="Next player..." onAction="#skipFortify"/>
+          </HBox>
+        </Tab>
+      </tabs>
+    </TabPane>
+  </bottom>
+</BorderPane>
