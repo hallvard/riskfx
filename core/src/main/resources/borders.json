@@ -1,0 +1,252 @@
+{
+  "Alaska": [
+    "Alberta",
+    "Kamchatka",
+    "Northwest Territory"
+  ],
+  "Alberta": [
+    "Alaska",
+    "Northwest Territory",
+    "Ontario",
+    "Western United States"
+  ],
+  "Central America": [
+    "Eastern United States",
+    "Venezuela",
+    "Western United States"
+  ],
+  "Eastern United States": [
+    "Central America",
+    "Ontario",
+    "Quebec",
+    "Western United States"
+  ],
+  "Greenland": [
+    "Iceland",
+    "Northwest Territory",
+    "Ontario",
+    "Quebec"
+  ],
+  "Northwest Territory": [
+    "Alaska",
+    "Alberta",
+    "Greenland",
+    "Ontario"
+  ],
+  "Ontario": [
+    "Alberta",
+    "Eastern United States",
+    "Greenland",
+    "Northwest Territory",
+    "Quebec",
+    "Western United States"
+  ],
+  "Quebec": [
+    "Eastern United States",
+    "Greenland",
+    "Ontario"
+  ],
+  "Western United States": [
+    "Alberta",
+    "Central America",
+    "Eastern United States",
+    "Ontario"
+  ],
+  "Argentina": [
+    "Brazil",
+    "Peru"
+  ],
+  "Brazil": [
+    "Argentina",
+    "North Africa",
+    "Peru",
+    "Venezuela"
+  ],
+  "Peru": [
+    "Argentina",
+    "Brazil",
+    "Venezuela"
+  ],
+  "Venezuela": [
+    "Brazil",
+    "Central America",
+    "Peru"
+  ],
+  "Great Britain": [
+    "Iceland",
+    "Northern Europe",
+    "Scandinavia",
+    "Western Europe"
+  ],
+  "Iceland": [
+    "Great Britain",
+    "Greenland",
+    "Scandinavia"
+  ],
+  "Northern Europe": [
+    "Great Britain",
+    "Scandinavia",
+    "Southern Europe",
+    "Ukraine",
+    "Western Europe"
+  ],
+  "Scandinavia": [
+    "Great Britain",
+    "Iceland",
+    "Northern Europe",
+    "Ukraine"
+  ],
+  "Ukraine": [
+    "Afghanistan",
+    "Middle East",
+    "Northern Europe",
+    "Scandinavia",
+    "Southern Europe",
+    "Ural"
+  ],
+  "Southern Europe": [
+    "Egypt",
+    "Middle East",
+    "North Africa",
+    "Northern Europe",
+    "Ukraine",
+    "Western Europe"
+  ],
+  "Western Europe": [
+    "Great Britain",
+    "North Africa",
+    "Northern Europe",
+    "Southern Europe"
+  ],
+  "Congo": [
+    "East Africa",
+    "North Africa",
+    "South Africa"
+  ],
+  "East Africa": [
+    "Congo",
+    "Egypt",
+    "Madagascar",
+    "Middle East",
+    "North Africa",
+    "South Africa"
+  ],
+  "North Africa": [
+    "Brazil",
+    "Congo",
+    "East Africa",
+    "Egypt",
+    "Southern Europe",
+    "Western Europe"
+  ],
+  "South Africa": [
+    "Congo",
+    "East Africa",
+    "Madagascar"
+  ],
+  "Egypt": [
+    "East Africa",
+    "Middle East",
+    "North Africa",
+    "Southern Europe"
+  ],
+  "Madagascar": [
+    "East Africa",
+    "South Africa"
+  ],
+  "Afghanistan": [
+    "China",
+    "India",
+    "Middle East",
+    "Ukraine",
+    "Ural"
+  ],
+  "China": [
+    "Afghanistan",
+    "India",
+    "Mongolia",
+    "Siam",
+    "Siberia",
+    "Ural"
+  ],
+  "India": [
+    "Afghanistan",
+    "China",
+    "Middle East",
+    "Siam"
+  ],
+  "Irkutsk": [
+    "Kamchatka",
+    "Mongolia",
+    "Siberia",
+    "Yakursk"
+  ],
+  "Japan": [
+    "Kamchatka",
+    "Mongolia"
+  ],
+  "Kamchatka": [
+    "Alaska",
+    "Irkutsk",
+    "Japan",
+    "Mongolia",
+    "Yakursk"
+  ],
+  "Middle East": [
+    "Afghanistan",
+    "East Africa",
+    "Egypt",
+    "India",
+    "Southern Europe",
+    "Ukraine"
+  ],
+  "Mongolia": [
+    "China",
+    "Irkutsk",
+    "Japan",
+    "Kamchatka",
+    "Siberia"
+  ],
+  "Siam": [
+    "China",
+    "India",
+    "Indonesia"
+  ],
+  "Siberia": [
+    "China",
+    "Irkutsk",
+    "Mongolia",
+    "Ural",
+    "Yakursk"
+  ],
+  "Ural": [
+    "Afghanistan",
+    "China",
+    "Siberia",
+    "Ukraine"
+  ],
+  "Yakursk": [
+    "Irkutsk",
+    "Kamchatka",
+    "Siberia"
+  ],
+  "Eastern Australia": [
+    "New Guinea",
+    "Western Australia"
+  ],
+  "Indonesia": [
+    "New Guinea",
+    "Siam",
+    "Western Australia"
+  ],
+  "New Guinea": [
+    "Eastern Australia",
+    "Indonesia",
+    "Western Australia"
+  ],
+  "Western Australia": [
+    "Eastern Australia",
+    "Indonesia",
+    "New Guinea"
+  ]
+}

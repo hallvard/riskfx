@@ -1,0 +1,75 @@
+[
+  {
+    "name": "British Isles",
+    "territories": [
+      "England",
+      "Ireland",
+      "Scotland",
+      "Wales"
+    ],
+    "bonusPoints": 2
+  },
+  {
+    "name": "Norden",
+    "territories": [
+      "Denmark",
+      "Finland",
+      "Iceland",
+      "Norway",
+      "Sweden"
+    ],
+    "bonusPoints": 3
+  },
+  {
+    "name": "Baltics",
+    "territories": [
+      "Estonia",
+      "Latvia",
+      "Lithuania"
+    ],
+    "bonusPoints": 2
+  },
+  {
+    "name": "Western Europe",
+    "territories": [
+      "Belgium",
+      "France",
+      "Germany",
+      "Netherlands",
+      "Portugal",
+      "Spain"
+    ],
+    "bonusPoints": 4
+  },
+  {
+    "name": "Central and Eastern Europe",
+    "territories": [
+      "Austria",
+      "Bulgaria",
+      "Czechia",
+      "Hungary",
+      "Moldova",
+      "Poland",
+      "Romania",
+      "Slovakia",
+      "Ukraine"
+    ],
+    "bonusPoints": 6
+  },
+  {
+    "name": "Southern Europe",
+    "territories": [
+      "Albania",
+      "Bosnia",
+      "Croatia",
+      "Greece",
+      "Italy",
+      "Mediterranean Isles",
+      "Montenegro",
+      "North Macedonia",
+      "Serbia",
+      "Slovenia"
+    ],
+    "bonusPoints": 6
+  }
+]
