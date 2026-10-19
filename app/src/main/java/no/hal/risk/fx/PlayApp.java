@@ -577,10 +577,11 @@ public class PlayApp extends Application {
         boolean attack = territory.occupant() != env().currentPlayer() && humanTurn.selectedFrom() != null;
         // the menu for the armies to move in after a conquest is only shown if the rule lets the player choose
         var first = attack
-            ? new NumberMenuController.Choice("Attack " + territory.name(), () -> attackOnce(territory, true, x, y))
-            : new NumberMenuController.Choice(territory == humanTurn.selectedFrom() ? "Deselect " + territory.name() : "Attack from " + territory.name(),
+            ? new NumberMenuController.Choice("Attack here", () -> attackOnce(territory, true, x, y))
+            : new NumberMenuController.Choice(territory == humanTurn.selectedFrom() ? "Deselect" : "Attack from here",
                 () -> territoryDefault(territory));
-        numberMenu.show(owner, x, y, List.of(first, endAttack));
+        // ending the attack is the default of the menu, since a quick press already attacks
+        numberMenu.show(owner, x, y, List.of(endAttack, first));
       }
       case FORTIFYING -> {
         var skip = new NumberMenuController.Choice("Skip fortify", () -> humanAction(new Action.SkipFortify()));
@@ -588,14 +589,17 @@ public class PlayApp extends Application {
           select(territory);
           render();
           int max = humanTurn.maxFortifyArmies();
-          numberMenu.show(owner, x, y, 1, max, max,
+          // skipping is the default, since a quick press already moves as many as possible
+          var choices = new java.util.ArrayList<NumberMenuController.Choice>();
+          choices.add(skip);
+          choices.addAll(NumberMenuController.numberChoices(1, max, max,
               n -> n == max ? "Move all (%d)".formatted(n) : "Move %d".formatted(n),
-              n -> humanAction(humanTurn.fortify(n)),
-              List.of(skip));
+              n -> humanAction(humanTurn.fortify(n))));
+          numberMenu.show(owner, x, y, choices);
         } else {
-          var first = new NumberMenuController.Choice(territory == humanTurn.selectedFrom() ? "Deselect " + territory.name() : "Move armies from " + territory.name(),
+          var first = new NumberMenuController.Choice(territory == humanTurn.selectedFrom() ? "Deselect" : "Move from here",
               () -> territoryDefault(territory));
-          numberMenu.show(owner, x, y, List.of(first, skip));
+          numberMenu.show(owner, x, y, List.of(skip, first));
         }
       }
       case GAME_OVER -> {

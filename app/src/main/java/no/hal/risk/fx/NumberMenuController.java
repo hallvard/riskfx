@@ -7,21 +7,18 @@ import java.util.TreeSet;
 import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 import javafx.scene.Node;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.MenuItem;
 
 /**
- * Lets the player choose in a menu where the mouse is, with the default under the mouse.
- * The menu doesn't consume the click that closes it.
- * This is the only class that knows what the menu looks like, so it can be replaced with a pie menu
- * centered on the click, with the default in the middle.
+ * Lets the player choose in a pie menu centered where the mouse is, with the default in the middle, under the mouse.
+ * The menu doesn't consume the click that closes it. The menu itself is {@link PieMenu}, which is the only class that knows
+ * what it looks like.
  */
 public class NumberMenuController {
 
   /** The most entries in the menu. */
   public static final int MAX_ENTRIES = 5;
 
-  private ContextMenu menu;
+  private PieMenu menu;
 
   /**
    * The numbers to choose between, in increasing order, from 1 to {@code max}: all of them if there are at most {@link #MAX_ENTRIES},
@@ -72,52 +69,33 @@ public class NumberMenuController {
   /** Like the above, with more choices after the numbers. */
   public void show(Node owner, double screenX, double screenY, int min, int max, int preferred, IntFunction<String> label, IntConsumer onChosen,
       List<Choice> after) {
+    var choices = new ArrayList<>(numberChoices(min, max, preferred, label, onChosen));
+    choices.addAll(after);
+    show(owner, screenX, screenY, choices);
+  }
+
+  /** The choices of the numbers from {@code min} to {@code max}: the preferred number first, and then the others in decreasing order. */
+  public static List<Choice> numberChoices(int min, int max, int preferred, IntFunction<String> label, IntConsumer onChosen) {
     var numbers = new ArrayList<>(options(min, max));
     numbers.sort(Comparator.reverseOrder());
     if (numbers.remove((Integer) preferred)) {
       numbers.addFirst(preferred);
     }
-    var choices = new ArrayList<>(numbers.stream()
-        .map(number -> new Choice(label.apply(number), () -> onChosen.accept(number)))
-        .toList());
-    choices.addAll(after);
-    show(owner, screenX, screenY, choices);
+    return numbers.stream().map(number -> new Choice(label.apply(number), () -> onChosen.accept(number))).toList();
   }
 
   /**
-   * Shows a menu with the choices, replacing any menu that is showing.
-   * The first choice is the default: it is emphasized and placed under the mouse, so releasing the button again there chooses it.
+   * Shows a pie menu with the choices, replacing any menu that is showing. It is centered on the point, and the first choice is
+   * the default, in the circle in the middle, where the mouse is, so a click without moving the mouse chooses it.
+   * The others are sectors around it, clockwise from the top.
    */
   public void show(Node owner, double screenX, double screenY, List<Choice> choices) {
     hide();
     if (choices.isEmpty() || owner.getScene() == null) {
       return;
     }
-    var newMenu = new ContextMenu();
-    newMenu.setConsumeAutoHidingEvents(false);
-    for (int i = 0; i < choices.size(); i++) {
-      var choice = choices.get(i);
-      var item = new MenuItem(choice.label());
-      if (i == 0) {
-        item.setStyle("-fx-font-weight: bold;");
-      }
-      item.setOnAction(_ -> choice.action().run());
-      newMenu.getItems().add(item);
-    }
-    // the menu is placed with its corner at the mouse, and then moved so that the first entry is under it
-    newMenu.setOnShown(_ -> {
-      var skin = newMenu.getSkin();
-      var first = skin != null ? skin.getNode().lookup(".menu-item") : null;
-      if (first != null) {
-        var bounds = first.localToScreen(first.getBoundsInLocal());
-        if (bounds != null) {
-          newMenu.setX(newMenu.getX() + screenX - 16 - bounds.getMinX());
-          newMenu.setY(newMenu.getY() + screenY - (bounds.getMinY() + bounds.getMaxY()) / 2);
-        }
-      }
-    });
-    menu = newMenu;
-    newMenu.show(owner, screenX, screenY);
+    menu = new PieMenu(choices);
+    menu.show(owner, screenX, screenY);
   }
 
   public boolean isShowing() {

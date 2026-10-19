@@ -3,6 +3,7 @@ package no.hal.risk.fx;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javafx.application.Platform;
 import javafx.scene.Parent;
@@ -51,6 +52,23 @@ public class PlaySnapshot {
     scene.getRoot().applyCss();
     scene.getRoot().layout();
     WritableImage image = scene.snapshot(null);
+    var buffered = new BufferedImage((int) image.getWidth(), (int) image.getHeight(), BufferedImage.TYPE_INT_ARGB);
+    var reader = image.getPixelReader();
+    for (int y = 0; y < buffered.getHeight(); y++) {
+      for (int x = 0; x < buffered.getWidth(); x++) {
+        buffered.setRGB(x, y, reader.getArgb(x, y));
+      }
+    }
+    javax.imageio.ImageIO.write(buffered, "png", new File(directory, name + ".png"));
+    System.out.println("wrote " + name + ".png");
+  }
+
+  private static void pie(String name, List<NumberMenuController.Choice> choices) throws Exception {
+    var content = new PieMenu(choices).content();
+    var pane = new javafx.scene.layout.StackPane(content);
+    pane.setStyle("-fx-background-color: #d8c8a0;");
+    var pieScene = new Scene(pane, 280, 280);
+    WritableImage image = pieScene.snapshot(null);
     var buffered = new BufferedImage((int) image.getWidth(), (int) image.getHeight(), BufferedImage.TYPE_INT_ARGB);
     var reader = image.getPixelReader();
     for (int y = 0; y < buffered.getHeight(); y++) {
@@ -140,5 +158,19 @@ public class PlaySnapshot {
     app.worldView().setEditLabels(true);
     snapshot("8-europe-editing-labels");
     app.worldView().setEditLabels(false);
+    // the pie menus, which are in windows of their own, so they are rendered on their own
+    pie("9-pie-attack", List.of(
+        new NumberMenuController.Choice("End attack", () -> {}),
+        new NumberMenuController.Choice("Attack Montenegro", () -> {})));
+    pie("9-pie-fortify", List.of(
+        new NumberMenuController.Choice("Skip fortify", () -> {}),
+        new NumberMenuController.Choice("Move all (12)", () -> {}), new NumberMenuController.Choice("Move 9", () -> {}),
+        new NumberMenuController.Choice("Move 6", () -> {}), new NumberMenuController.Choice("Move 3", () -> {}),
+        new NumberMenuController.Choice("Move 1", () -> {})));
+    pie("9-pie-reinforce", List.of(
+        new NumberMenuController.Choice("Place all 7", () -> {}), new NumberMenuController.Choice("Place 5", () -> {}),
+        new NumberMenuController.Choice("Place 4", () -> {}), new NumberMenuController.Choice("Place 2", () -> {}),
+        new NumberMenuController.Choice("Place 1", () -> {})));
+    pie("9-pie-alone", List.of(new NumberMenuController.Choice("Place all 7", () -> {})));
   }
 }
