@@ -2,6 +2,8 @@ package no.hal.risk.fx;
 
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.ReadOnlyDoubleWrapper;
+import java.util.function.Supplier;
+import javafx.geometry.Bounds;
 import javafx.geometry.Point2D;
 import javafx.scene.Node;
 import javafx.scene.input.MouseButton;
@@ -36,6 +38,7 @@ public class MapViewport extends Pane {
   /** Whether the map is still as it was fitted, which it is kept as when the window is resized. */
   private boolean fitted = true;
   private Point2D dragStart;
+  private Supplier<Bounds> contentBounds;
 
   public MapViewport(Node content) {
     this.content = content;
@@ -79,6 +82,20 @@ public class MapViewport extends Pane {
     return scale.getReadOnlyProperty();
   }
 
+  /**
+   * What the map covers, if not all of what the content has: the content is a pane, whose bounds always include its corner at the
+   * origin, so a map that starts further from it would be off center.
+   */
+  public void setContentBounds(Supplier<Bounds> contentBounds) {
+    this.contentBounds = contentBounds;
+    refit();
+  }
+
+  private Bounds bounds() {
+    var bounds = contentBounds != null ? contentBounds.get() : null;
+    return bounds != null ? bounds : content.getBoundsInLocal();
+  }
+
   /** The map as large as fits in the room, and in the middle of it. */
   public void reset() {
     fitted = true;
@@ -86,7 +103,7 @@ public class MapViewport extends Pane {
   }
 
   private void refit() {
-    var bounds = content.getBoundsInLocal();
+    var bounds = bounds();
     if (! fitted || bounds.getWidth() <= 0 || bounds.getHeight() <= 0 || getWidth() <= 0 || getHeight() <= 0) {
       return;
     }
@@ -100,7 +117,7 @@ public class MapViewport extends Pane {
   }
 
   private double fitScale() {
-    var bounds = content.getBoundsInLocal();
+    var bounds = bounds();
     return bounds.getWidth() > 0 && bounds.getHeight() > 0
         ? Math.min(MAX_FIT_SCALE, Math.min(getWidth() / bounds.getWidth(), getHeight() / bounds.getHeight())) : 1;
   }

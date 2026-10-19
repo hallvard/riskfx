@@ -48,3 +48,14 @@ or `ai-4p.weights` (3 and 4 players) and build again.
   The scripts in `models/overnight` and `models/elimination` were run before the code was split into modules, and before training
   moved to Python, and use the old names of the classes. The networks of those runs were converted to `.weights` files next to
   the originals (the files of the older format, `.bin`, can no longer be read), and are not in git.
+
+## In a browser (JPro)
+
+The user interface can be run on a server by [JPro](https://www.jpro.one) and used in a browser, for instance on a phone.
+It is the module `web`, in a profile, since JPro comes from a repository of its own:
+
+    mvn -Pweb -pl web -am install
+    mvn -Pweb -pl web jpro:run
+
+This starts a server on http://localhost:8080 and opens it in the browser. Each browser tab is a game of its own.
+The module only needs the app (without Quarkus), and JPro's own version of JavaFX is used (25.0.2 and a version of JPro that adds to it).

@@ -25,6 +25,21 @@
       <javafx.version>26-ea+7</javafx.version>
     </properties>
 
+    <!--
+      web: the same user interface in a browser, with JPro (https://www.jpro.one), which runs it on a server and shows it in the browser.
+      It is a profile, since JPro comes from a repository of its own, which the other modules and the build on GitHub don't need:
+        mvn -Pweb -pl web -am install
+        mvn -Pweb -pl web jpro:run
+    -->
+    <profiles>
+        <profile>
+            <id>web</id>
+            <modules>
+                <module>web</module>
+            </modules>
+        </profile>
+    </profiles>
+
     <dependencyManagement>
         <dependencies>
             <dependency>

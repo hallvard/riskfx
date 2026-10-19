@@ -29,3 +29,6 @@ models/**/*.bin
 models/**/*.bin.last
 # the networks of the experiments are kept as files, but not in git; those of the AI are in models/ itself
 models/*/*.weights
+
+# JPro
+web/RUNNING_PID

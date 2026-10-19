@@ -158,6 +158,9 @@ public class PlaySnapshot {
     app.worldView().setEditLabels(true);
     snapshot("8-europe-editing-labels");
     app.worldView().setEditLabels(false);
+    app.showNewGameCard(true);
+    snapshot("10-new-game-card");
+    app.showNewGameCard(false);
     // the pie menus, which are in windows of their own, so they are rendered on their own
     pie("9-pie-attack", List.of(
         new NumberMenuController.Choice("End attack", () -> {}),

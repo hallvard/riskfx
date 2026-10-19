@@ -167,6 +167,21 @@ public class WorldView {
     return mapPane;
   }
 
+  /** What the shapes on the map cover, or null if there are none, which is what a viewport should fit in the window and center. */
+  public javafx.geometry.Bounds shapeBounds() {
+    double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE, maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
+    var all = new ArrayList<Path>(shapes);
+    all.addAll(inactiveShapes);
+    for (var shape : all) {
+      var bounds = shape.getBoundsInParent();
+      minX = Math.min(minX, bounds.getMinX());
+      minY = Math.min(minY, bounds.getMinY());
+      maxX = Math.max(maxX, bounds.getMaxX());
+      maxY = Math.max(maxY, bounds.getMaxY());
+    }
+    return all.isEmpty() ? null : new javafx.geometry.BoundingBox(minX, minY, maxX - minX, maxY - minY);
+  }
+
   private Property<World> worldProperty = new SimpleObjectProperty<>();
 
   /** Sets where the shapes of the territories come from, for the next world. */

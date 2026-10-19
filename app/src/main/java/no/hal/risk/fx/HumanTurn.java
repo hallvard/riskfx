@@ -222,6 +222,29 @@ public class HumanTurn {
     return new Click(null, null);
   }
 
+  /** What the player can do now, as short as can be, for a line over the map. */
+  public String shortInstructions() {
+    clearSelectionIfStateChanged();
+    if (env.isDone()) {
+      return "The game is over";
+    }
+    return switch (env.phase()) {
+      case REINFORCING -> {
+        int left = env.risk().currentTurnState() instanceof TurnState.Reinforcing reinforcing ? reinforcing.totalArmies() : 0;
+        yield "Reinforce: %d left".formatted(left);
+      }
+      case ATTACKING -> from == null
+          ? "Attack: pick a territory to attack from"
+          : "Attack from %s (%d): pick a target".formatted(from.name(), from.numArmies());
+      case FORTIFYING -> from == null
+          ? "Fortify: pick a territory to move from"
+          : to == null
+              ? "Move from %s (up to %d): pick where to".formatted(from.name(), env.risk().maxFortifyNum(from))
+              : "Move from %s to %s: tap %2$s again".formatted(from.name(), to.name());
+      case GAME_OVER -> "The game is over";
+    };
+  }
+
   /** What the player can do now. */
   public String instructions() {
     clearSelectionIfStateChanged();
