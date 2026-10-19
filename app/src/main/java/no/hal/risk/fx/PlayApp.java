@@ -11,10 +11,13 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Group;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.geometry.Point2D;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.ComboBox;
@@ -25,13 +28,13 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.stage.FileChooser;
 import javafx.stage.Popup;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -69,9 +72,13 @@ public class PlayApp extends Application {
   private AiNetworks aiNetworks;
   private BotMatch match;
   private HumanTurn humanTurn;
+  private MapViewport mapViewport;
   private ComboBox<GameMap> mapBox;
   private CheckBox showNamesBox;
   private CheckBox showRegionsBox;
+  private CheckBox editLabelsBox;
+  private GameMap currentMap = GameMap.CLASSIC;
+  private Map<String, Point2D> labelOffsetsAtStart = Map.of();
   private CheckBox keepArmiesBackBox;
   private CheckBox conquestBonusBox;
   private CheckBox eliminationBonusBox;
@@ -107,6 +114,11 @@ public class PlayApp extends Application {
 
   BotMatch match() {
     return match;
+  }
+
+  /** For the tool that renders the interface. */
+  MapViewport mapViewport() {
+    return mapViewport;
   }
 
   /** For the tool that renders the interface. */
@@ -171,10 +183,18 @@ public class PlayApp extends Application {
 
     var root = new BorderPane();
     root.setTop(createTop());
-    root.setCenter(fitToWindow(mapPane));
+    mapViewport = new MapViewport(mapPane);
+    root.setCenter(mapViewport);
+    // the text and lines of the map keep their size on the screen when zooming, which gives room for more of the names
+    mapViewport.scaleProperty().subscribe(scale -> worldView.setViewScale(scale.doubleValue()));
     root.setBottom(createHumanBar());
-    // Enter ends the attack or skips the fortification, which is also in the menus
+    // Enter ends the attack or skips the fortification, which is also in the menus, and 0 fits the map to the window again
     root.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+      if (event.getCode() == KeyCode.DIGIT0 && ! event.isShortcutDown()) {
+        mapViewport.reset();
+        event.consume();
+        return;
+      }
       if (event.getCode() == KeyCode.ENTER && match != null && match.isHumanTurn()) {
         var action = switch (env().phase()) {
           case ATTACKING -> new Action.EndAttack();
@@ -190,27 +210,6 @@ public class PlayApp extends Application {
     });
     return root;
   }
-
-  /** The map, scaled up or down to fill the room it has, since the territories of a map with many are small. */
-  private static Parent fitToWindow(Pane mapPane) {
-    var content = new Group(mapPane);
-    var viewport = new StackPane(content);
-    viewport.setMinSize(0, 0);
-    Runnable fit = () -> {
-      var bounds = content.getLayoutBounds();
-      if (bounds.getWidth() > 0 && bounds.getHeight() > 0 && viewport.getWidth() > 0 && viewport.getHeight() > 0) {
-        var scale = Math.min(MAX_MAP_SCALE, Math.min(viewport.getWidth() / bounds.getWidth(), viewport.getHeight() / bounds.getHeight()));
-        content.setScaleX(scale);
-        content.setScaleY(scale);
-      }
-    };
-    viewport.widthProperty().subscribe(fit);
-    viewport.heightProperty().subscribe(fit);
-    content.layoutBoundsProperty().subscribe(fit);
-    return viewport;
-  }
-
-  private static final double MAX_MAP_SCALE = 1.8;
 
   private Parent createTop() {
     // what to play: the number of players or a combination, and what controls each player
@@ -243,6 +242,10 @@ public class PlayApp extends Application {
     showNamesBox.selectedProperty().subscribe(show -> worldView.setShowNames(show));
     showRegionsBox = new CheckBox("Show regions");
     showRegionsBox.selectedProperty().subscribe(show -> worldView.setShowRegions(show));
+    editLabelsBox = new CheckBox("Edit label places");
+    editLabelsBox.setTooltip(new Tooltip("Drag the number and name of a territory to move them, and double-click to put them back. "
+        + "When switched off, the places can be saved for the map generator. Only for maps that have a file for it."));
+    editLabelsBox.selectedProperty().addListener((_, _, editing) -> editLabelsChanged(editing));
     mapBox = new ComboBox<>();
     mapBox.getItems().setAll(GameMap.all());
     mapBox.setValue(GameMap.CLASSIC);
@@ -292,9 +295,13 @@ public class PlayApp extends Application {
     var button = new Button("\u2699");
     button.setStyle("-fx-font-size: 16;");
     button.setTooltip(new Tooltip("Settings"));
+    var zoomNote = new Label("Zoom with Ctrl or Cmd and scroll, or pinch. Move with scroll, or drag with the right button. Press 0 to fit.");
+    zoomNote.setWrapText(true);
+    zoomNote.setMaxWidth(260);
+    zoomNote.setStyle("-fx-text-fill: gray;");
     var note = new Label("The map and the rules are read when a new game starts.");
     note.setStyle("-fx-text-fill: gray;");
-    var content = new VBox(8, new Label("View"), showNamesBox, showRegionsBox, new Label("Map"), mapBox, new Label("Rules"), keepArmiesBackBox, conquestBonusBox, eliminationBonusBox, note);
+    var content = new VBox(8, new Label("View"), showNamesBox, showRegionsBox, editLabelsBox, zoomNote, new Label("Map"), mapBox, new Label("Rules"), keepArmiesBackBox, conquestBonusBox, eliminationBonusBox, note);
     content.setPadding(new Insets(12));
     content.setStyle("-fx-background-color: -fx-background; -fx-border-color: gray; -fx-background-radius: 4; -fx-border-radius: 4;");
     var popup = new Popup();
@@ -310,6 +317,70 @@ public class PlayApp extends Application {
       }
     });
     return button;
+  }
+
+  /** Editing the places of the labels is switched on, and then off, which asks whether to save what was moved. */
+  private void editLabelsChanged(boolean editing) {
+    if (editing) {
+      labelOffsetsAtStart = worldView.labelOffsets();
+      worldView.setEditLabels(true);
+      updateControls();
+      return;
+    }
+    worldView.setEditLabels(false);
+    var offsets = worldView.labelOffsets();
+    if (! offsets.equals(labelOffsetsAtStart)) {
+      if (! askToSaveLabelOffsets(offsets)) {
+        worldView.setLabelOffsets(labelOffsetsAtStart);
+      }
+    }
+    updateControls();
+  }
+
+  /** Asks whether to save the displaced labels, and does if so. Returns whether they are kept (saved). */
+  private boolean askToSaveLabelOffsets(Map<String, Point2D> offsets) {
+    var file = findLabelOffsetsFile(currentMap.labelOffsetsFile());
+    var save = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+    var discard = new ButtonType("Discard", ButtonBar.ButtonData.CANCEL_CLOSE);
+    var alert = new Alert(Alert.AlertType.CONFIRMATION,
+        "%d labels are away from where the map has them.\nSave their places in %s?\nRun the generator of the map afterwards to use them.".formatted(
+            offsets.size(), file != null ? file : "a file that you choose"), save, discard);
+    alert.setHeaderText("Save the places of the labels?");
+    if (alert.showAndWait().orElse(discard) != save) {
+      return false;
+    }
+    if (file == null) {
+      var chooser = new FileChooser();
+      chooser.setTitle("Save the places of the labels");
+      chooser.setInitialFileName(Path.of(currentMap.labelOffsetsFile()).getFileName().toString());
+      var chosen = chooser.showSaveDialog(worldView.node().getScene().getWindow());
+      if (chosen == null) {
+        return false;
+      }
+      file = chosen.toPath();
+    }
+    try {
+      var displacements = new java.util.TreeMap<String, double[]>();
+      offsets.forEach((name, offset) -> displacements.put(name, new double[] {Math.round(offset.getX() * 10) / 10.0, Math.round(offset.getY() * 10) / 10.0}));
+      new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(file.toFile(), displacements);
+      hint = "Saved the places of %d labels in %s.".formatted(offsets.size(), file);
+      return true;
+    } catch (IOException e) {
+      new Alert(Alert.AlertType.ERROR, "Could not save: " + e.getMessage()).showAndWait();
+      return false;
+    }
+  }
+
+  /** The file with the given path from the root of the project, found by looking in the directory where the application runs and above it. */
+  static Path findLabelOffsetsFile(String relativePath) {
+    var directory = Path.of("").toAbsolutePath();
+    for (int levels = 0; directory != null && levels < 5; levels++, directory = directory.getParent()) {
+      var candidate = directory.resolve(relativePath);
+      if (java.nio.file.Files.isDirectory(candidate.getParent())) {
+        return candidate;
+      }
+    }
+    return null;
   }
 
   private Parent createHumanBar() {
@@ -369,6 +440,10 @@ public class PlayApp extends Application {
 
   void startGame(GameSetup newSetup, FortifyMode fortifyMode, Rules rules, GameMap map, long seed) {
     timer.stop();
+    // a new map has its own labels, so editing the labels of the last one ends, with the question whether to save
+    editLabelsBox.setSelected(false);
+    currentMap = map;
+    editLabelsBox.setDisable(map.labelOffsetsFile() == null);
     var bots = new ArrayList<Bot>();
     for (var kind : newSetup.kinds()) {
       switch (kind) {
@@ -395,7 +470,7 @@ public class PlayApp extends Application {
     lastMoveOutlines = Map.of();
     hint = "";
     // the map is built for the new game, and then updated when the board is dealt
-    worldView.setTerritoryPathProvider(new TerritoryPathProvider(map.shapesResource()));
+    worldView.setTerritoryPathProvider(new TerritoryPathProvider(map.shapesResource(), map.labelOffsetsResource()));
     worldView.worldProperty().setValue(env.risk().world());
     worldView.setMarkedTerritories(Map.of());
     env.risk().addRiskListener(new RiskListener() {
@@ -703,7 +778,10 @@ public class PlayApp extends Application {
     humanBar.setVisible(setup.hasHuman());
     humanBar.setManaged(setup.hasHuman());
     var phase = env().phase();
-    if (match.isDone()) {
+    if (worldView.isEditingLabels()) {
+      instructionLabel.setText("Editing labels: drag a territory to move its number and name, and double-click to put them back. "
+          + "Switch it off in the settings to save.");
+    } else if (match.isDone()) {
       instructionLabel.setText(statusLabel.getText());
     } else if (human) {
       instructionLabel.setText(humanTurn.instructions() + (hint.isEmpty() ? "" : "\n" + hint));

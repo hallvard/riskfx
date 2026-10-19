@@ -11,6 +11,10 @@ The borders of the game are found from the shapes: two territories border each o
 two corners in common (the shapes come from borders that are drawn once, so the corners agree). Only the connections across sea are
 written by hand, in SEA_LINKS.
 
+The label of a territory (its number of armies, with its name below) is placed automatically, and can be moved by hand: in the
+application, choose Edit labels in the settings, drag the labels, and switch it off again to save the displacements in
+label-offsets.json next to this script, which is read here and added to the automatic places.
+
 Edit the lists below and run it again (it reads the svg next to it):
 
     python3 -I tools/europe/make_europe_map.py
@@ -186,21 +190,47 @@ def merge_rings(rings, digits=1):
     return merged
 
 
+NAME_ROW_OFFSET = 14.0  # how far below the number of armies the name is, in the units of the svg, at the size of text in the application
+LABEL_ROW_MARGIN = 6.0  # half the height of a row of text
+
+
+def row_intervals(ring, y):
+    """The stretches of a horizontal line at y that are inside a ring, as (from, to)."""
+    crossings = sorted(ring[i][0] + (y - ring[i][1]) * (ring[(i + 1) % len(ring)][0] - ring[i][0]) / (ring[(i + 1) % len(ring)][1] - ring[i][1])
+                       for i in range(len(ring)) if (ring[i][1] > y) != (ring[(i + 1) % len(ring)][1] > y))
+    return list(zip(crossings[::2], crossings[1::2]))
+
+
 def label_point(rings):
-    """Where to show the armies and the name: the middle of the longest horizontal stretch inside the largest part, near its middle."""
+    """Where to show the number of armies, with the name below it: the point of the largest part with the most room around it for
+    both, which is the one where the narrowest of the rows of the number and the name is widest, with the point in the middle of each
+    row. Of equally good points, the one nearest the middle of the part."""
     ring = max(rings, key=lambda r: abs(area(r)))
-    ys = [p[1] for p in ring]
-    middle = centroid(ring)[1]
-    best, best_length = centroid(ring), -1.0
-    for step in range(-6, 7):
-        y = middle + step * (max(ys) - min(ys)) / 24
-        crossings = sorted(ring[i][0] + (y - ring[i][1]) * (ring[(i + 1) % len(ring)][0] - ring[i][0]) / (ring[(i + 1) % len(ring)][1] - ring[i][1])
-                           for i in range(len(ring)) if (ring[i][1] > y) != (ring[(i + 1) % len(ring)][1] > y))
-        for a, b in zip(crossings[::2], crossings[1::2]):
-            # a long stretch, near the middle of the part
-            length = (b - a) - abs(y - middle) * 0.6
-            if length > best_length:
-                best, best_length = ((a + b) / 2, y), length
+    middle = centroid(ring)
+    rows = {}
+
+    def room(x, y):
+        """Twice the distance to the nearest edge along the row, if x is inside the shape in it, otherwise 0."""
+        key = round(y)
+        if key not in rows:
+            rows[key] = row_intervals(ring, key + 0.01)
+        for start, end in rows[key]:
+            if start <= x <= end:
+                return 2 * min(x - start, end - x)
+        return 0.0
+
+    best, best_score = middle, -1.0
+    top, bottom = int(min(p[1] for p in ring)), int(max(p[1] for p in ring)) + 1
+    for y in range(top, bottom + 1):
+        for start, end in row_intervals(ring, y + 0.01):
+            x = start + 1.0
+            while x < end:
+                score = min(room(x, y + offset) for offset in
+                            (-LABEL_ROW_MARGIN, 0.0, NAME_ROW_OFFSET, NAME_ROW_OFFSET + LABEL_ROW_MARGIN))
+                score -= 0.03 * math.dist((x, y), middle)
+                if score > best_score:
+                    best, best_score = (x, y), score
+                x += 2.0
     return best
 
 
@@ -294,8 +324,20 @@ def path_string(rings, shift):
     return " ".join("M " + " L ".join("%.1f,%.1f" % (x - shift[0], y - shift[1]) for x, y in ring) + " Z" for ring in rings)
 
 
+def read_label_offsets(names):
+    """The displacements of labels by hand, from the file that the application saves: name -> (dx, dy) in the units of the svg."""
+    path = HERE / "label-offsets.json"
+    if not path.exists():
+        return {}
+    offsets = json.loads(path.read_text(encoding="utf8"))
+    unknown = set(offsets) - set(names)
+    assert not unknown, "label-offsets.json has labels for something that is not a territory: %s" % sorted(unknown)
+    return {name: (float(dx), float(dy)) for name, (dx, dy) in offsets.items()}
+
+
 def main():
     shapes, neutral = territories()
+    label_offsets = read_label_offsets(shapes)
     members = [t for _, _, ts in CONTINENTS for t in ts]
     assert sorted(members) == sorted(shapes), set(members) ^ set(shapes)
     sea = {tuple(sorted(pair.replace("_", " ").split("-"))) for pair in SEA_LINKS.split()}
@@ -327,9 +369,12 @@ def main():
                         "label": [round(x - shift[0], 1), round(y - shift[1], 1)]})
     for name, rings in shapes.items():
         x, y = label_point(rings)
+        dx, dy = label_offsets.get(name, (0.0, 0.0))
         entries.append({
             "id": "".join(ch if ch.isalnum() else "_" for ch in name.lower()), "path": path_string(rings, shift),
-            "label": [round(x - shift[0], 1), round(y - shift[1], 1)],
+            # where the label is, and where it would be without the displacement by hand, which the application edits
+            "label": [round(x + dx - shift[0], 1), round(y + dy - shift[1], 1)],
+            "labelBase": [round(x - shift[0], 1), round(y - shift[1], 1)],
             # the shapes that meet need no line between them, only those across sea
             "touches": sorted(other for a, b in meet for other in (a, b) if name in (a, b) and other != name)})
     (app / "map.json").write_text(json.dumps(entries, indent=1) + "\n")

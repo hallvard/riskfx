@@ -132,5 +132,13 @@ public class PlaySnapshot {
     snapshot("8-europe-later");
     app.worldView().setShowRegions(true);
     snapshot("8-europe-regions");
+    app.worldView().setShowRegions(false);
+    // zoomed in on the Balkans: the names have room, and the text is the same size
+    app.mapViewport().zoom(3.0, 640, 520);
+    snapshot("8-europe-zoomed");
+    app.mapViewport().reset();
+    app.worldView().setEditLabels(true);
+    snapshot("8-europe-editing-labels");
+    app.worldView().setEditLabels(false);
   }
 }
