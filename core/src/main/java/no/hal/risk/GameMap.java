@@ -14,7 +14,7 @@ public record GameMap(String name, Path continentsPath, Path bordersPath, String
     String labelOffsetsResource) {
 
   public static final GameMap CLASSIC = new GameMap("Classic", Path.of("/continents.json"), Path.of("/borders.json"), "/map.json",
-      "app/src/main/resources/label-offsets.json", "/label-offsets.json");
+      "ui/src/main/resources/label-offsets.json", "/label-offsets.json");
 
   public static final GameMap EUROPE = new GameMap("Europe", Path.of("/maps/europe/continents.json"), Path.of("/maps/europe/borders.json"),
       "/maps/europe/map.json", "tools/europe/label-offsets.json", null);

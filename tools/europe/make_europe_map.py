@@ -55,6 +55,7 @@ Iceland-Norway Norway-Denmark Sweden-Denmark Finland-Estonia Sweden-Latvia Italy
 Mediterranean_Isles-France Mediterranean_Isles-Spain Mediterranean_Isles-Italy
 """
 
+SIMPLIFY_TOLERANCE = 0.8  # in the units of the svg (about a pixel on the screen at the size of the whole map): points that change the outline less are left out
 TOO_SMALL = 8.0  # the shapes of islands smaller than this are left out, since they are specks on the map
 MARGIN = 10.0
 HIDE_TURKEY_EAST_OF = 800.0  # of Turkey, only the part next to Europe is shown
@@ -201,6 +202,72 @@ def row_intervals(ring, y):
     return list(zip(crossings[::2], crossings[1::2]))
 
 
+def key(point):
+    return (round(point[0], 1), round(point[1], 1))
+
+
+def simplified_chain(chain):
+    """The Douglas-Peucker simplification of a chain of points, with the ends kept."""
+    keep = [False] * len(chain)
+    keep[0] = keep[-1] = True
+    stack = [(0, len(chain) - 1)]
+    while stack:
+        first, last = stack.pop()
+        (x1, y1), (x2, y2) = chain[first], chain[last]
+        length = math.hypot(x2 - x1, y2 - y1)
+        worst, worst_distance = -1, SIMPLIFY_TOLERANCE
+        for i in range(first + 1, last):
+            x, y = chain[i]
+            distance = (math.hypot(x - x1, y - y1) if length == 0
+                        else abs((x2 - x1) * (y1 - y) - (x1 - x) * (y2 - y1)) / length)
+            if distance > worst_distance:
+                worst, worst_distance = i, distance
+        if worst >= 0:
+            keep[worst] = True
+            stack.append((first, worst))
+            stack.append((worst, last))
+    return [p for p, kept in zip(chain, keep) if kept]
+
+
+def simplify_all(*groups):
+    """Leaves out points that hardly change the outlines, so the shapes are smaller to draw and to send to a browser.
+    A border that two shapes share is simplified once, the same way for both, so they still fit and still share corners:
+    each ring is cut into chains where the set of shapes that have an edge changes, and each chain is simplified on its own."""
+    owners = {}
+    for group in groups:
+        for name, rings in group.items():
+            for ring in rings:
+                for point in ring:
+                    owners.setdefault(key(point), set()).add(name)
+    cache = {}
+
+    def chain_result(chain):
+        # the same result from both sides, which see the chain in opposite directions
+        forward = key(chain[0]) <= key(chain[-1])
+        oriented = chain if forward else chain[::-1]
+        cache_key = tuple(key(p) for p in oriented)
+        if cache_key not in cache:
+            cache[cache_key] = simplified_chain(oriented)
+        result = cache[cache_key]
+        return result if forward else result[::-1]
+
+    def simplified(name, ring):
+        n = len(ring)
+        edge_owners = [frozenset(owners[key(ring[i])] & owners[key(ring[(i + 1) % n])]) for i in range(n)]
+        junctions = [i for i in range(n) if edge_owners[i - 1] != edge_owners[i]]
+        if not junctions:
+            # all edges are the same: an island, or a border all around, cut in two at the points farthest from each other
+            far = max(range(n), key=lambda i: math.dist(ring[0], ring[i]))
+            junctions = [0, far]
+        result = []
+        for a, b in zip(junctions, junctions[1:] + [junctions[0] + n]):
+            chain = [ring[i % n] for i in range(a, b + 1)]
+            result.extend(chain_result(chain)[:-1])
+        return result if len(result) >= 3 else ring
+
+    return tuple({name: [simplified(name, ring) for ring in rings] for name, rings in group.items()} for group in groups)
+
+
 def label_point(rings):
     """Where to show the number of armies, with the name below it: the point of the largest part with the most room around it for
     both, which is the one where the narrowest of the rows of the number and the name is widest, with the point in the middle of each
@@ -337,6 +404,10 @@ def read_label_offsets(names):
 
 def main():
     shapes, neutral = territories()
+    before = sum(len(ring) for rings in list(shapes.values()) + list(neutral.values()) for ring in rings)
+    shapes, neutral = simplify_all(shapes, neutral)
+    after = sum(len(ring) for rings in list(shapes.values()) + list(neutral.values()) for ring in rings)
+    print("points in the shapes: %d, simplified to %d" % (before, after))
     label_offsets = read_label_offsets(shapes)
     members = [t for _, _, ts in CONTINENTS for t in ts]
     assert sorted(members) == sorted(shapes), set(members) ^ set(shapes)
@@ -356,7 +427,7 @@ def main():
     shift = (min(all_x) - MARGIN, min(all_y) - MARGIN)
 
     core = ROOT / "core" / "src" / "main" / "resources" / "maps" / "europe"
-    app = ROOT / "app" / "src" / "main" / "resources" / "maps" / "europe"
+    app = ROOT / "ui" / "src" / "main" / "resources" / "maps" / "europe"
     core.mkdir(parents=True, exist_ok=True)
     app.mkdir(parents=True, exist_ok=True)
     (core / "continents.json").write_text(json.dumps(

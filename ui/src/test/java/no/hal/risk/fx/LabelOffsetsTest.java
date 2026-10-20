@@ -25,14 +25,14 @@ public class LabelOffsetsTest {
 
   @Test
   public void everyMapHasAFileForTheLabelsMovedByHand() {
-    assertEquals("app/src/main/resources/label-offsets.json", GameMap.CLASSIC.labelOffsetsFile());
+    assertEquals("ui/src/main/resources/label-offsets.json", GameMap.CLASSIC.labelOffsetsFile());
     assertEquals("tools/europe/label-offsets.json", GameMap.EUROPE.labelOffsetsFile());
     // the displacements are applied by the application for the classic map, which has no generator, and by the generator for Europe
     assertEquals("/label-offsets.json", GameMap.CLASSIC.labelOffsetsResource());
     assertNull(GameMap.EUROPE.labelOffsetsResource());
     var file = PlayApp.findLabelOffsetsFile(GameMap.CLASSIC.labelOffsetsFile());
     assertNotNull(file);
-    assertTrue(file.endsWith("app/src/main/resources/label-offsets.json"), file.toString());
+    assertTrue(file.endsWith("ui/src/main/resources/label-offsets.json"), file.toString());
   }
 
   @Test

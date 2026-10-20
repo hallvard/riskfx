@@ -287,26 +287,7 @@ public class WorldView {
       children.add(name);
       positionNameLabel(territory);
     }
-    // the regions get a colored rim on top, but don't take the mouse
-    regionNodes.clear();
-    var continents = getWorld().continents();
-    for (int i = 0; i < continents.size(); i++) {
-      var continent = continents.get(i);
-      var color = Color.hsb(360.0 * i / continents.size(), 0.85, 0.55);
-      // a rim inside each territory in the color of its region, so borders between regions have two colors,
-      // and those within a region have the same color on both sides
-      for (var territory : continent.territories()) {
-        var path = getTerritoryNode(territory, Path.class);
-        var rim = copyOf(path);
-        rim.setFill(Color.TRANSPARENT);
-        rim.setStroke(color);
-        rim.setStrokeWidth(RIM_WIDTH);
-        rim.setStrokeType(StrokeType.INSIDE);
-        rim.setMouseTransparent(true);
-        regionNodes.add(rim);
-        children.add(rim);
-      }
-    }
+    updateRims();
     // markers on the labels, for dragging them, shown when editing
     editMarkers.getChildren().clear();
     editMarkerOf.clear();
@@ -480,6 +461,37 @@ public class WorldView {
     centerAt(name, center.getX(), center.getY());
   }
 
+  /**
+   * The regions get a colored rim on top, but don't take the mouse. They are only made when they are shown, since they are a copy of each
+   * shape, which is a cost to draw, and in a browser to send.
+   */
+  private void updateRims() {
+    mapPane.getChildren().removeAll(regionNodes);
+    regionNodes.clear();
+    if (! showRegions || getWorld() == null || territoryNodes.isEmpty()) {
+      return;
+    }
+    var continents = getWorld().continents();
+    for (int i = 0; i < continents.size(); i++) {
+      var continent = continents.get(i);
+      var color = Color.hsb(360.0 * i / continents.size(), 0.85, 0.55);
+      // a rim inside each territory in the color of its region, so borders between regions have two colors,
+      // and those within a region have the same color on both sides
+      for (var territory : continent.territories()) {
+        var path = getTerritoryNode(territory, Path.class);
+        var rim = copyOf(path);
+        rim.setFill(Color.TRANSPARENT);
+        rim.setStroke(color);
+        rim.setStrokeWidth(RIM_WIDTH / viewScale);
+        rim.setStrokeType(StrokeType.INSIDE);
+        rim.setMouseTransparent(true);
+        regionNodes.add(rim);
+        mapPane.getChildren().add(rim);
+      }
+    }
+    raiseRegionNodes();
+  }
+
   /** A new path with the same shape, since the elements of a path should not be shared. */
   private static Path copyOf(Path path) {
     var copy = new Path();
@@ -511,6 +523,7 @@ public class WorldView {
   /** Whether each territory has a rim in the color of its region. */
   public void setShowRegions(boolean showRegions) {
     this.showRegions = showRegions;
+    updateRims();
     updateVisibility();
   }
 

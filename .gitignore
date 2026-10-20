@@ -32,3 +32,4 @@ models/*/*.weights
 
 # JPro
 web/RUNNING_PID
+mobile/target/

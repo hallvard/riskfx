@@ -31,7 +31,7 @@ As a jar with its dependencies in `app/target/libs`, which can be started from a
     mvn -Pplay -DskipTests package
     java -jar app/target/riskfx-play.jar
 
-The networks of the AI are in the application (`app/src/main/resources/ai/`), one for games of 2 players and one for 3 or 4.
+The networks of the AI are in the application (`ui/src/main/resources/ai/`), one for games of 2 players and one for 3 or 4.
 Other ones can be used with the options `--ai2=file` and `--ai4=file` for the jar, or the properties `riskfx.ai2` and `riskfx.ai4`
 for Quarkus.
 
@@ -39,7 +39,7 @@ for Quarkus.
 
 The network is trained by the learner in Python, which has the Java actor play the games. See `learner/README.md`.
 
-To use a new network in the app, copy its weights to `app/src/main/resources/ai/ai-2p.weights` (2 players)
+To use a new network in the app, copy its weights to `ui/src/main/resources/ai/ai-2p.weights` (2 players)
 or `ai-4p.weights` (3 and 4 players) and build again.
 
 ## Files

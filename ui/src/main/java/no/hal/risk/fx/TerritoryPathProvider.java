@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import jakarta.enterprise.context.ApplicationScoped;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -17,7 +16,6 @@ import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 
-@ApplicationScoped
 public class TerritoryPathProvider {
 
   private Map<String, Path> territoryPaths;

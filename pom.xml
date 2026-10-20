@@ -10,11 +10,14 @@
     <!--
       core:     the rules of the game, the environment and the bots, and what it takes to run a trained network (in Java only)
       training: playing the games for training, and measuring the network. The network is trained by the learner, in Python (/learner)
-      app:      the user interface (Quarkus and JavaFX), which only needs the core
+      ui:       the user interface (JavaFX), which only needs the core, and the maps and the trained networks
+      app:      starts the user interface on the desktop, with Quarkus (mvn quarkus:dev)
+      web, mobile: the same user interface in a browser, and as a native Android app, in profiles of their own
     -->
     <modules>
         <module>core</module>
         <module>training</module>
+        <module>ui</module>
         <module>app</module>
     </modules>
 
@@ -31,7 +34,24 @@
         mvn -Pweb -pl web -am install
         mvn -Pweb -pl web jpro:run
     -->
+    <!--
+      mobile: the same user interface as a native app with Gluon (GraalVM native image), for Android. Gluon supports a narrower range of
+      versions, so it is built with Java 23 and JavaFX 24, also the modules it uses, which this profile sets for the whole build:
+        mvn -Pmobile -pl mobile -am install
+        mvn -Pmobile -pl mobile gluonfx:run                       (the desktop, on a JVM, to try it)
+        mvn -Pmobile -Pandroid -pl mobile gluonfx:build gluonfx:package   (only on Linux)
+    -->
     <profiles>
+        <profile>
+            <id>mobile</id>
+            <modules>
+                <module>mobile</module>
+            </modules>
+            <properties>
+                <maven.compiler.release>23</maven.compiler.release>
+                <javafx.version>24.0.2</javafx.version>
+            </properties>
+        </profile>
         <profile>
             <id>web</id>
             <modules>
@@ -55,8 +75,18 @@
                 <version>${javafx.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-controls</artifactId>
+                <version>${javafx.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>no.hal</groupId>
                 <artifactId>riskfx-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>no.hal</groupId>
+                <artifactId>riskfx-ui</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

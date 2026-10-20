@@ -10,7 +10,7 @@
 
     <artifactId>riskfx-web</artifactId>
     <name>RiskFx in a browser</name>
-    <description>The user interface of the app, run on a server by JPro and shown in a browser, for instance on a phone.</description>
+    <description>The user interface, run on a server by JPro and shown in a browser, for instance on a phone.</description>
 
     <properties>
         <jpro.version>2026.3.1</jpro.version>
@@ -19,21 +19,10 @@
     </properties>
 
     <dependencies>
-        <!-- the user interface, without Quarkus, which starts the app on the desktop, and is not used here -->
         <dependency>
             <groupId>no.hal</groupId>
-            <artifactId>riskfx-app</artifactId>
+            <artifactId>riskfx-ui</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.quarkus</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>io.quarkiverse.fx</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
@@ -50,16 +39,6 @@
             <groupId>one.jpro</groupId>
             <artifactId>jpro-webapi</artifactId>
             <version>${jpro.version}</version>
-        </dependency>
-        <!-- what the app needs of the libraries that Quarkus brings in the app -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.enterprise</groupId>
-            <artifactId>jakarta.enterprise.cdi-api</artifactId>
-            <scope>provided</scope>
         </dependency>
     </dependencies>
 

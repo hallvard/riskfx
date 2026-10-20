@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>no.hal</groupId>
+        <artifactId>riskfx-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>riskfx-mobile</artifactId>
+    <name>RiskFx as a native app</name>
+    <description>The user interface as a native app, with Gluon (GraalVM native image): on Android, and on the desktop to try it. Built with the mobile profile, which sets the versions of Java and JavaFX that Gluon supports.</description>
+
+    <properties>
+        <gluonfx-maven-plugin.version>1.0.29</gluonfx-maven-plugin.version>
+        <mainClassName>no.hal.risk.mobile.MobileApp</mainClassName>
+        <gluonfx.target>host</gluonfx.target>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>no.hal</groupId>
+            <artifactId>riskfx-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- gluonfx:run runs the app on a JVM through this plugin, and reads the main class from it -->
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>${mainClassName}</mainClass>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.gluonhq</groupId>
+                <artifactId>gluonfx-maven-plugin</artifactId>
+                <version>${gluonfx-maven-plugin.version}</version>
+                <configuration>
+                    <mainClass>${mainClassName}</mainClass>
+                    <target>${gluonfx.target}</target>
+                    <!-- the files that are read from the class path, which a native image only has if they are listed -->
+                    <resourcesList>
+                        <list>.*\.json$</list>
+                        <list>.*\.weights$</list>
+                    </resourcesList>
+                    <appIdentifier>no.hal.riskfx</appIdentifier>
+                    <releaseConfiguration>
+                        <appLabel>RiskFx</appLabel>
+                        <versionCode>1</versionCode>
+                        <versionName>1.0</versionName>
+                    </releaseConfiguration>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- mvn -Pmobile -Pandroid ... gluonfx:build gluonfx:package: the native app for Android, which can only be built on Linux -->
+        <profile>
+            <id>android</id>
+            <properties>
+                <gluonfx.target>android</gluonfx.target>
+            </properties>
+        </profile>
+    </profiles>
+</project>

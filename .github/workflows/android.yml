@@ -1,0 +1,50 @@
+name: "Android"
+
+# Builds the native Android app (an apk) with Gluon, which can only be done on Linux. It takes a while, so it is started by hand
+# (Actions, Android, Run workflow), and the apk is a file of the run. It follows the setup of halban (the sokoban app).
+# Gluon's GraalVM needs Java 23 or newer for this code, and the app is built with the mobile profile, which sets Java 23 and JavaFX 24.
+# The Gluon plugin is documented for Maven 3.8.8 or older, so that is what is used here, not Maven 4.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Java 23 and Maven 3.8.8
+        uses: s4u/setup-maven-action@v1.18.0
+        with:
+          java-distribution: 'temurin'
+          java-version: '23'
+          maven-version: '3.8.8'
+
+      - name: Build the modules the app needs
+        run: mvn --batch-mode -Pmobile -pl mobile -am install -DskipTests
+
+      - name: Setup Gluon's GraalVM
+        uses: gluonhq/setup-graalvm@master
+        with:
+          graalvm: '23+25.1-dev-2409082136'
+          jdk: 'java23'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install linux libraries
+        run: |
+          sudo apt-get update
+          sudo apt install libasound2-dev libavcodec-dev libavformat-dev libavutil-dev libgl-dev libgtk-3-dev libpango1.0-dev libxtst-dev
+
+      - name: Build the native Android app
+        run: |
+          export ANDROID_SDK=$ANDROID_HOME
+          mvn --batch-mode -Pmobile -Pandroid -pl mobile gluonfx:build gluonfx:package
+
+      - name: Tree view of the Gluon build files
+        run: tree mobile/target/gluonfx
+
+      - name: Upload the apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: mobile/target/gluonfx/aarch64-android/gvm/*.apk

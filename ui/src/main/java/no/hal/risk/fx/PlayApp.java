@@ -175,11 +175,19 @@ public class PlayApp extends Application {
    * A program with a window for each user, such as one running in a browser, must not end when one of them is closed.
    */
   public void show(Stage stage, Map<String, String> options, boolean exitOnClose) {
+    show(stage, options, exitOnClose, false);
+  }
+
+  /**
+   * Like {@link #show(Stage, Map, boolean)}, and with {@code fillWindow} the scene has no size of its own, but takes that of the window,
+   * which is the screen on a phone, and the browser window in a browser, and follows it when it changes, for instance when the device is turned.
+   */
+  public void show(Stage stage, Map<String, String> options, boolean exitOnClose, boolean fillWindow) {
     // PyTorch scales badly beyond a few threads for a network of this size
     System.setProperty("ai.djl.pytorch.num_threads", System.getProperty("ai.djl.pytorch.num_threads", "4"));
     aiNetworks = new AiNetworks(options.containsKey("ai2") ? Path.of(options.get("ai2")) : null,
         options.containsKey("ai4") ? Path.of(options.get("ai4")) : null);
-    stage.setScene(new Scene(createContent(), 1100, 860));
+    stage.setScene(fillWindow ? new Scene(createContent()) : new Scene(createContent(), 1100, 860));
     stage.setTitle("RiskFx");
     stage.setOnCloseRequest(_ -> {
       timer.stop();

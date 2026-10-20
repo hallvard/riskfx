@@ -38,7 +38,7 @@ and holds out much longer than greedy, so it is a harder opponent in games of th
 against greedy bots on boards that were not used for choosing the best. `--help` lists the options. The rewards are named, with
 `--reward default`, `advantage` or `elimination`.
 
-To use a network in the app, copy its weights to `app/src/main/resources/ai/` (`ai-2p.weights` for 2 players, `ai-4p.weights`
+To use a network in the app, copy its weights to `ui/src/main/resources/ai/` (`ai-2p.weights` for 2 players, `ai-4p.weights`
 for 3 and 4), and build the app again.
 
 ## Tests
