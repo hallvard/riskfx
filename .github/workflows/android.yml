@@ -21,7 +21,7 @@ jobs:
           maven-version: '3.8.8'
 
       - name: Build the modules the app needs
-        run: mvn --batch-mode -Pmobile -pl mobile -am install -DskipTests
+        run: mvn --batch-mode -Pmobile -Dmaven.compiler.release=23 -pl mobile -am install -DskipTests
 
       - name: Setup Gluon's GraalVM
         uses: gluonhq/setup-graalvm@master
@@ -38,7 +38,7 @@ jobs:
       - name: Build the native Android app
         run: |
           export ANDROID_SDK=$ANDROID_HOME
-          mvn --batch-mode -Pmobile -Pandroid -pl mobile gluonfx:build gluonfx:package
+          mvn --batch-mode -Pmobile -Pandroid -Dmaven.compiler.release=23 -pl mobile gluonfx:build gluonfx:package
 
       - name: Tree view of the Gluon build files
         run: tree mobile/target/gluonfx

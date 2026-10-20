@@ -13,7 +13,12 @@
     <description>The user interface as a native app, with Gluon (GraalVM native image): on Android, and on the desktop to try it. Built with the mobile profile, which sets the versions of Java and JavaFX that Gluon supports.</description>
 
     <properties>
-        <gluonfx-maven-plugin.version>1.0.29</gluonfx-maven-plugin.version>
+        <!--
+          Plugin 1.0.25 uses Substrate 0.0.65, which is what the newest GraalVM that Gluon publishes (23+25.1-dev, 2024-09-08) is for.
+          Substrate 0.0.66 and later (plugins 1.0.26 to 1.0.29) pass the option ForceNoROSectionRelocations to the Android build,
+          which that GraalVM doesn't have: "Could not find option 'ForceNoROSectionRelocations'".
+        -->
+        <gluonfx-maven-plugin.version>1.0.25</gluonfx-maven-plugin.version>
         <mainClassName>no.hal.risk.mobile.MobileApp</mainClassName>
         <gluonfx.target>host</gluonfx.target>
     </properties>
