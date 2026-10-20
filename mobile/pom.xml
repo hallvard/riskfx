@@ -52,10 +52,13 @@
                 <configuration>
                     <mainClass>${mainClassName}</mainClass>
                     <target>${gluonfx.target}</target>
-                    <!-- the files that are read from the class path, which a native image only has if they are listed -->
+                    <!--
+                      The files that are read from the class path, which a native image only has if they are listed. The patterns are
+                      written into a json file as they are, so they must not have a backslash, which is not allowed in it: [.] is a dot.
+                    -->
                     <resourcesList>
-                        <list>.*\.json$</list>
-                        <list>.*\.weights$</list>
+                        <list>.*[.]json$</list>
+                        <list>.*[.]weights$</list>
                     </resourcesList>
                     <appIdentifier>no.hal.riskfx</appIdentifier>
                     <releaseConfiguration>

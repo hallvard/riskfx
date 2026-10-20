@@ -20,6 +20,21 @@ jobs:
           java-version: '23'
           maven-version: '3.8.8'
 
+      # The downloads are cached: the Maven repository, what Gluon downloads (the static SDKs, and the Android SDK and NDK),
+      # and Gradle. The caches are restored first, and saved last, also if the build failed, which a plain cache step doesn't do,
+      # so what was downloaded is there when a failing build is tried again. The key has the poms, so it changes with the dependencies.
+      - name: Restore the caches
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.m2/repository
+            !~/.m2/repository/no/hal
+            ~/.gluon
+            ~/.gradle
+          key: android-${{ hashFiles('**/pom.xml') }}
+          restore-keys: android-
+
       - name: Build the modules the app needs
         run: mvn --batch-mode -Pmobile -Dmaven.compiler.release=23 -pl mobile -am install -DskipTests
 
@@ -48,3 +63,14 @@ jobs:
         with:
           name: apk
           path: mobile/target/gluonfx/aarch64-android/gvm/*.apk
+
+      - name: Save the caches
+        if: always() && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.m2/repository
+            !~/.m2/repository/no/hal
+            ~/.gluon
+            ~/.gradle
+          key: android-${{ hashFiles('**/pom.xml') }}
