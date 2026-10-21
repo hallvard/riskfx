@@ -1,7 +1,7 @@
 name: "Android, changed 2026-10-21T23:01"
 
-# Builds the native Android app (an apk) with Gluon, which can only be done on Linux. It takes a while, so it is started by hand
-# (Actions, Android, Run workflow), and the apk is a file of the run. It follows the setup of halban (the sokoban app).
+# Builds the native Android app (an apk) with Gluon, which can only be done on Linux. It takes a while, so it is only started when this file is
+# changed and pushed to main, or by hand (Actions, Android, Run workflow, or gh workflow run android.yml), and the apk is a file of the run. It follows the setup of halban (the sokoban app).
 # Gluon's GraalVM needs Java 23 or newer for this code, and the app is built with the mobile profile, which sets Java 23 and JavaFX 24.
 # The Gluon plugin is documented for Maven 3.8.8 or older, so that is what is used here, not Maven 4.
 
@@ -12,7 +12,7 @@ name: "Android, changed 2026-10-21T23:01"
 # Without them, the app is signed with a debug key, which is different for each build.
 
 on:
-#  workflow_dispatch:
+  workflow_dispatch:
   push:
     branches:
       - main
