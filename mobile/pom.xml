@@ -21,6 +21,9 @@
         <gluonfx-maven-plugin.version>1.0.25</gluonfx-maven-plugin.version>
         <mainClassName>no.hal.risk.mobile.MobileApp</mainClassName>
         <gluonfx.target>host</gluonfx.target>
+        <!-- the workflow sets the version code to the number of the run, so each build can be installed over the one before -->
+        <android.versionCode>1</android.versionCode>
+        <android.versionName>1.0</android.versionName>
     </properties>
 
     <dependencies>
@@ -63,8 +66,8 @@
                     <appIdentifier>no.hal.riskfx</appIdentifier>
                     <releaseConfiguration>
                         <appLabel>RiskFx</appLabel>
-                        <versionCode>1</versionCode>
-                        <versionName>1.0</versionName>
+                        <versionCode>${android.versionCode}</versionCode>
+                        <versionName>${android.versionName}</versionName>
                     </releaseConfiguration>
                 </configuration>
             </plugin>
@@ -72,6 +75,31 @@
     </build>
 
     <profiles>
+        <!--
+          Signs the app with a key of our own, so that a new build can be installed over the one before. Without it, Gluon uses a debug key
+          that is made on the machine that builds, so each build has a different one, and the old app must be uninstalled first.
+          The keystore must have the file extension .keystore or .jks. The workflow sets these environment variables from secrets:
+          ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD.
+        -->
+        <profile>
+            <id>signed</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.gluonhq</groupId>
+                        <artifactId>gluonfx-maven-plugin</artifactId>
+                        <configuration>
+                            <releaseConfiguration>
+                                <providedKeyStorePath>${env.ANDROID_KEYSTORE_PATH}</providedKeyStorePath>
+                                <providedKeyStorePassword>${env.ANDROID_KEYSTORE_PASSWORD}</providedKeyStorePassword>
+                                <providedKeyAlias>${env.ANDROID_KEY_ALIAS}</providedKeyAlias>
+                                <providedKeyAliasPassword>${env.ANDROID_KEY_PASSWORD}</providedKeyAliasPassword>
+                            </releaseConfiguration>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <!-- mvn -Pmobile -Pandroid ... gluonfx:build gluonfx:package: the native app for Android, which can only be built on Linux -->
         <profile>
             <id>android</id>
