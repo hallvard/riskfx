@@ -115,12 +115,12 @@ public class PlayApp extends Application {
   private final List<Seat> seats = new ArrayList<>();
 
   /** The card of a player: colored as the player, with the kind of player, and the numbers of territories and armies. */
-  private record Seat(HBox row, VBox box, Rectangle swatch, Label title, Label counts, Label hint) {
+  private record Seat(HBox row, VBox box, Rectangle swatch, Label title, Label counts, Label hint, Button skip) {
   }
 
   private static final String HELP = "Tap a territory to do the usual thing: place all the armies, attack, or move as many armies as possible. "
-      + "Hold on it for a menu with other choices, such as ending the attack, skipping the fortification or choosing how many armies. "
-      + "Enter also ends the attack or skips the fortification.\n\n"
+      + "Hold on it to choose how many armies instead, in a menu. "
+      + "The button next to the hint ends the attack, or skips the fortification, and so does the Enter key.\n\n"
       + "On the map, zoom with Ctrl or Cmd and scroll, and move it with scroll or by dragging with the right button. Press 0 to fit it.";
 
   private RiskEnv env() {
@@ -265,20 +265,29 @@ public class PlayApp extends Application {
         event.consume();
         return;
       }
-      if (event.getCode() == KeyCode.ENTER && match != null && match.isHumanTurn() && ! newGameOverlay.isVisible()) {
-        var action = switch (env().phase()) {
-          case ATTACKING -> new Action.EndAttack();
-          case FORTIFYING -> new Action.SkipFortify();
-          default -> null;
-        };
-        if (action != null) {
-          numberMenu.hide();
-          humanAction(action);
-          event.consume();
-        }
+      if (event.getCode() == KeyCode.ENTER && ! newGameOverlay.isVisible() && endPhase()) {
+        event.consume();
       }
     });
     return root;
+  }
+
+  /** Ends the attack, or skips the fortification, for a human whose turn it is, which the button and the Enter key do. Returns whether it did. */
+  private boolean endPhase() {
+    if (match == null || ! match.isHumanTurn()) {
+      return false;
+    }
+    var action = switch (env().phase()) {
+      case ATTACKING -> new Action.EndAttack();
+      case FORTIFYING -> new Action.SkipFortify();
+      default -> null;
+    };
+    if (action == null) {
+      return false;
+    }
+    numberMenu.hide();
+    humanAction(action);
+    return true;
   }
 
   /** The controls that are used in the card for a new game and in the settings, which are made first, since they work together. */
@@ -384,8 +393,8 @@ public class PlayApp extends Application {
 
   /** The cog button in the bar, which shows the settings of the view in a popup that closes when clicking outside it. */
   private Button createSettingsButton() {
-    var button = new Button("\u2699");
-    button.setStyle("-fx-font-size: 14;");
+    var button = new Button();
+    button.setGraphic(Icons.gear(16, Icons.DARK));
     button.setTooltip(new Tooltip("Settings of the view"));
     var content = new VBox(8, showNamesBox, showRegionsBox, editLabelsBox);
     var frame = new VBox(content);
@@ -418,12 +427,22 @@ public class PlayApp extends Application {
     var box = new VBox(1, new HBox(5, swatch, title), counts);
     box.setPadding(new Insets(3, 8, 3, 8));
     boolean left = index == 0 || index == 1;
-    var row = left ? new HBox(8, box, hint) : new HBox(8, hint, box);
-    // the card and the hint are centered on each other, and the map under them gets the taps
+    // the button ends the attack or skips the fortification, so it is only there in those phases, for a human
+    var skip = new Button();
+    skip.setGraphic(Icons.skip(16, Color.WHITE));
+    skip.setStyle("-fx-background-color: rgba(30, 30, 30, 0.85); -fx-background-radius: 20; -fx-min-width: 44; -fx-min-height: 44; "
+        + "-fx-max-width: 44; -fx-max-height: 44;");
+    skip.setVisible(false);
+    skip.setManaged(false);
+    skip.setOnAction(_ -> endPhase());
+    var row = left ? new HBox(8, box, hint, skip) : new HBox(8, skip, hint, box);
+    // the card and the hint are centered on each other, and the map under them gets the taps, but the button gets its own
     row.setAlignment(left ? Pos.CENTER_LEFT : Pos.CENTER_RIGHT);
-    row.setMouseTransparent(true);
+    box.setMouseTransparent(true);
+    hint.setMouseTransparent(true);
+    row.setPickOnBounds(false);
     row.setVisible(false);
-    return new Seat(row, box, swatch, title, counts, hint);
+    return new Seat(row, box, swatch, title, counts, hint, skip);
   }
 
   /** The card for a new game, over the map: what to play, on which map, and with which rules. Not shown until asked for. */
@@ -724,33 +743,26 @@ public class PlayApp extends Application {
         }
       }
       case ATTACKING -> {
-        var endAttack = new NumberMenuController.Choice("End attack", () -> humanAction(new Action.EndAttack()));
+        // there is only one thing to do, so no menu: an attack, where the menu for the armies to move in after a conquest is shown if the rule
+        // lets the player choose, or selecting or deselecting a territory to attack from. Ending the attack is the button for it.
         boolean attack = territory.occupant() != env().currentPlayer() && humanTurn.selectedFrom() != null;
-        // the menu for the armies to move in after a conquest is only shown if the rule lets the player choose
-        var first = attack
-            ? new NumberMenuController.Choice("Attack here", () -> attackOnce(territory, true, x, y))
-            : new NumberMenuController.Choice(territory == humanTurn.selectedFrom() ? "Deselect" : "Attack from here",
-                () -> territoryDefault(territory));
-        // ending the attack is the default of the menu, since a quick press already attacks
-        numberMenu.show(owner, x, y, List.of(endAttack, first));
+        if (attack) {
+          attackOnce(territory, true, x, y);
+        } else {
+          territoryDefault(territory);
+        }
       }
       case FORTIFYING -> {
-        var skip = new NumberMenuController.Choice("Skip fortify", () -> humanAction(new Action.SkipFortify()));
         if (humanTurn.canFortifyTo(territory)) {
           select(territory);
           render();
           int max = humanTurn.maxFortifyArmies();
-          // skipping is the default, since a quick press already moves as many as possible
-          var choices = new java.util.ArrayList<NumberMenuController.Choice>();
-          choices.add(skip);
-          choices.addAll(NumberMenuController.numberChoices(1, max, max,
+          numberMenu.show(owner, x, y, 1, max, max,
               n -> n == max ? "Move all (%d)".formatted(n) : "Move %d".formatted(n),
-              n -> humanAction(humanTurn.fortify(n))));
-          numberMenu.show(owner, x, y, choices);
+              n -> humanAction(humanTurn.fortify(n)));
         } else {
-          var first = new NumberMenuController.Choice(territory == humanTurn.selectedFrom() ? "Deselect" : "Move from here",
-              () -> territoryDefault(territory));
-          numberMenu.show(owner, x, y, List.of(skip, first));
+          // selecting or deselecting the territory to move armies from is all there is, so no menu. Skipping is the button for it.
+          territoryDefault(territory);
         }
       }
       case GAME_OVER -> {
@@ -952,6 +964,14 @@ public class PlayApp extends Application {
       boolean here = human && i < env().players().size() && env().players().get(i) == current;
       seat.hint().setVisible(here);
       seat.hint().setManaged(here);
+      // ending the attack, or skipping the fortification, has no argument, so it is a button, and there is nothing to skip when reinforcing
+      var phase = env().phase();
+      boolean canSkip = here && (phase == Phase.ATTACKING || phase == Phase.FORTIFYING);
+      seat.skip().setVisible(canSkip);
+      seat.skip().setManaged(canSkip);
+      if (canSkip) {
+        seat.skip().setTooltip(new Tooltip(phase == Phase.ATTACKING ? "End the attack" : "Skip the fortification"));
+      }
       if (here) {
         seat.hint().setText(humanTurn.shortInstructions() + (hint.isEmpty() ? "" : "\n" + hint));
       }
