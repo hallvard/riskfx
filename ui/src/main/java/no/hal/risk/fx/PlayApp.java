@@ -185,6 +185,35 @@ public class PlayApp extends Application {
    * which is the screen on a phone, and the browser window in a browser, and follows it when it changes, for instance when the device is turned.
    */
   public void show(Stage stage, Map<String, String> options, boolean exitOnClose, boolean fillWindow) {
+    try {
+      showWindow(stage, options, exitOnClose, fillWindow);
+    } catch (Throwable e) {
+      // an error at the start, which on a phone would be a black window, and nowhere to read what went wrong, is shown instead
+      e.printStackTrace();
+      stage.setScene(new Scene(failureContent(e)));
+      stage.show();
+    }
+  }
+
+  /** What is shown if the window could not be made: the error, with what caused it, to read, and to tell. */
+  Parent failureContent(Throwable error) {
+    var text = new java.io.StringWriter();
+    error.printStackTrace(new java.io.PrintWriter(text));
+    var title = new Label("RiskFx could not start");
+    title.setStyle("-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: #b71c1c;");
+    var details = new Label(text.toString());
+    details.setWrapText(true);
+    details.setStyle("-fx-font-family: monospace; -fx-font-size: 14;");
+    var scroll = new javafx.scene.control.ScrollPane(details);
+    scroll.setFitToWidth(true);
+    var box = new VBox(8, title, scroll);
+    VBox.setVgrow(scroll, Priority.ALWAYS);
+    box.setPadding(new Insets(12));
+    box.setStyle("-fx-background-color: white;");
+    return box;
+  }
+
+  private void showWindow(Stage stage, Map<String, String> options, boolean exitOnClose, boolean fillWindow) {
     // PyTorch scales badly beyond a few threads for a network of this size
     System.setProperty("ai.djl.pytorch.num_threads", System.getProperty("ai.djl.pytorch.num_threads", "4"));
     aiNetworks = new AiNetworks(options.containsKey("ai2") ? Path.of(options.get("ai2")) : null,
@@ -572,9 +601,6 @@ public class PlayApp extends Application {
     maps.setAlignment(Pos.CENTER);
     for (var map : GameMap.all()) {
       var mapButton = new ToggleButton(map.name());
-      // a picture of the map above its name
-      mapButton.setGraphic(MapThumbnail.of(map, 110, 72));
-      mapButton.setContentDisplay(javafx.scene.control.ContentDisplay.TOP);
       mapButton.setToggleGroup(group);
       mapButton.setUserData(map);
       mapButton.setMinWidth(130);
@@ -645,6 +671,7 @@ public class PlayApp extends Application {
     }
     if (on) {
       timer.stop();
+      addMapThumbnails();
       mapButtons.forEach(mapButton -> mapButton.setSelected(mapButton.getUserData() == chosenMap));
       numberMenu.hide();
     } else {
@@ -653,6 +680,27 @@ public class PlayApp extends Application {
     updateSetupControls();
     if (match != null) {
       render();
+    }
+  }
+
+  private boolean thumbnailsAdded;
+
+  /**
+   * Puts a picture of the map above its name on the buttons for choosing a map. It is done when they are first shown, not when the window is
+   * made, since it reads the data of every map, and a failure in that is then only a missing picture, and not a window that can't start.
+   */
+  private void addMapThumbnails() {
+    if (thumbnailsAdded) {
+      return;
+    }
+    thumbnailsAdded = true;
+    for (var mapButton : mapButtons) {
+      try {
+        mapButton.setGraphic(MapThumbnail.of((GameMap) mapButton.getUserData(), 110, 72));
+        mapButton.setContentDisplay(javafx.scene.control.ContentDisplay.TOP);
+      } catch (RuntimeException | LinkageError e) {
+        e.printStackTrace();
+      }
     }
   }
 

@@ -160,6 +160,9 @@ public class PlaySnapshot {
     app.worldView().setEditLabels(false);
     app.setSetupMode(true);
     snapshot("10-new-game-card");
+    // what is shown if the window could not be made
+    scene.setRoot(app.failureContent(new IllegalStateException("The map could not be read", new java.io.UncheckedIOException(new java.io.FileNotFoundException("/maps/europe/continents.json")))));
+    snapshot("11-failure");
     app.setSetupMode(false);
     // the pie menus, which are in windows of their own, so they are rendered on their own
     pie("9-pie-attack", List.of(
