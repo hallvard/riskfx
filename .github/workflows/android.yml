@@ -1,4 +1,4 @@
-name: "Android, changed 2026-11-09T22:52"
+name: "Android, changed 2026-11-09T23:10"
 
 # Builds the native Android app (an apk) with Gluon, which can only be done on Linux. It takes a while, so it is only started when this file is
 # changed and pushed to main, or by hand (Actions, Android, Run workflow, or gh workflow run android.yml), and the apk is a file of the run. It follows the setup of halban (the sokoban app).
@@ -87,8 +87,8 @@ jobs:
             -Dandroid.versionCode=${{ github.run_number }} -Dandroid.versionName=1.0.${{ github.run_number }} \
             -pl mobile gluonfx:build gluonfx:package
 
-      - name: Tree view of the Gluon build files
-        run: tree mobile/target/gluonfx
+#      - name: Tree view of the Gluon build files
+#        run: tree mobile/target/gluonfx
 
       - name: Name the apk
         id: apk
