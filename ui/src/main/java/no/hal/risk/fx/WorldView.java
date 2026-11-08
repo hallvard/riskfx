@@ -474,7 +474,7 @@ public class WorldView {
     var continents = getWorld().continents();
     for (int i = 0; i < continents.size(); i++) {
       var continent = continents.get(i);
-      var color = Color.hsb(360.0 * i / continents.size(), 0.85, 0.55);
+      var color = regionColor(i, continents.size());
       // a rim inside each territory in the color of its region, so borders between regions have two colors,
       // and those within a region have the same color on both sides
       for (var territory : continent.territories()) {
@@ -492,8 +492,13 @@ public class WorldView {
     raiseRegionNodes();
   }
 
+  /** The color of the region with the number, of all the regions, which is the same in the rims of the map and in its thumbnail. */
+  static Color regionColor(int index, int regions) {
+    return Color.hsb(360.0 * index / regions, 0.85, 0.55);
+  }
+
   /** A new path with the same shape, since the elements of a path should not be shared. */
-  private static Path copyOf(Path path) {
+  static Path copyOf(Path path) {
     var copy = new Path();
     for (var element : path.getElements()) {
       switch (element) {
@@ -664,9 +669,22 @@ public class WorldView {
     updateTerritoryLabel(territory);
   }
 
+  private static final Color DIMMED_FILL = Color.rgb(190, 190, 190);
+  private boolean dimmed;
+
+  /** Whether the territories are all light grey, instead of the colors of their players, so the map is quiet behind something else. */
+  public void setDimmed(boolean dimmed) {
+    if (this.dimmed != dimmed) {
+      this.dimmed = dimmed;
+      if (getWorld() != null && ! territoryNodes.isEmpty()) {
+        getWorld().allTerritories().forEach(this::updateTerritoryPath);
+      }
+    }
+  }
+
   private void updateTerritoryPath(Territory territory) {
     var path = getTerritoryNode(territory, Path.class);
-    Color fillColor = FxColors.of(territory.occupant().color());
+    Color fillColor = dimmed ? DIMMED_FILL : FxColors.of(territory.occupant().color());
     path.setFill(fillColor);
     var markColor = markedTerritories.get(territory);
     path.setStroke(markColor != null ? markColor : Color.BLACK);

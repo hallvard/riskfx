@@ -9,6 +9,8 @@ import java.util.Map;
 import javafx.animation.PauseTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.geometry.BoundingBox;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
@@ -20,15 +22,14 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.OverrunStyle;
-import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -42,6 +43,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.FileChooser;
 import javafx.stage.Popup;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import no.hal.risk.FortifyMode;
@@ -73,13 +75,11 @@ import no.hal.risk.env.RiskEnv;
 public class PlayApp extends Application {
 
   private static final int MAX_TURNS = 400;
-  private static final String DEFAULT_PRESET = "Human against AI";
 
   private AiNetworks aiNetworks;
   private BotMatch match;
   private HumanTurn humanTurn;
   private MapViewport mapViewport;
-  private ComboBox<GameMap> mapBox;
   private CheckBox showNamesBox;
   private CheckBox showRegionsBox;
   private CheckBox editLabelsBox;
@@ -99,12 +99,13 @@ public class PlayApp extends Application {
   /** A message about why the last click did nothing. */
   private String hint = "";
 
-  // setup controls, in the card for a new game
-  private ComboBox<GameSetup.Preset> presetBox;
-  private final List<ComboBox<PlayerKind>> kindBoxes = new ArrayList<>();
-  private final List<HBox> kindRows = new ArrayList<>();
-  private StackPane newGameOverlay;
-  private Button cancelNewGameButton;
+  // setting up a new game, on the table: the kind of each seat (null if it is empty), the map, and the buttons in the middle
+  private final PlayerKind[] seatKinds = {PlayerKind.HUMAN, PlayerKind.AI, null, null};
+  private GameMap chosenMap = GameMap.CLASSIC;
+  private boolean setupMode;
+  private Pane setupLayer;
+  private Button startButton;
+  private final List<ToggleButton> mapButtons = new ArrayList<>();
   // the bar at the top
   private Label statusLabel;
   private ToggleButton playButton;
@@ -121,6 +122,7 @@ public class PlayApp extends Application {
   private static final String HELP = "Tap a territory to do the usual thing: place all the armies, attack, or move as many armies as possible. "
       + "Hold on it to choose how many armies instead, in a menu. "
       + "The button next to the hint ends the attack, or skips the fortification, and so does the Enter key.\n\n"
+      + "New game shows the four seats: tap one to choose who plays it, or to leave it empty, and choose the map in the middle.\n\n"
       + "On the map, zoom with Ctrl or Cmd and scroll, and move it with scroll or by dragging with the right button. Press 0 to fit it.";
 
   private RiskEnv env() {
@@ -250,12 +252,14 @@ public class PlayApp extends Application {
         AnchorPane.setRightAnchor(seat.row(), 6.0);
       }
     }
-    newGameOverlay = createNewGameCard(table);
-    table.getChildren().add(newGameOverlay);
-    AnchorPane.setTopAnchor(newGameOverlay, 0.0);
-    AnchorPane.setBottomAnchor(newGameOverlay, 0.0);
-    AnchorPane.setLeftAnchor(newGameOverlay, 0.0);
-    AnchorPane.setRightAnchor(newGameOverlay, 0.0);
+    // the map can't be moved out of sight: it must stay in relation to the rectangle that the players never cover
+    mapViewport.setSafeArea(() -> safeArea(table));
+    setupLayer = createSetupLayer();
+    table.getChildren().add(setupLayer);
+    AnchorPane.setTopAnchor(setupLayer, 0.0);
+    AnchorPane.setBottomAnchor(setupLayer, 0.0);
+    AnchorPane.setLeftAnchor(setupLayer, 0.0);
+    AnchorPane.setRightAnchor(setupLayer, 0.0);
     root.setCenter(table);
 
     // Enter ends the attack or skips the fortification, which is also in the menus, and 0 fits the map to the window again
@@ -265,7 +269,7 @@ public class PlayApp extends Application {
         event.consume();
         return;
       }
-      if (event.getCode() == KeyCode.ENTER && ! newGameOverlay.isVisible() && endPhase()) {
+      if (event.getCode() == KeyCode.ENTER && ! setupMode && endPhase()) {
         event.consume();
       }
     });
@@ -290,27 +294,44 @@ public class PlayApp extends Application {
     return true;
   }
 
-  /** The controls that are used in the card for a new game and in the settings, which are made first, since they work together. */
-  private void createControls() {
-    // what to play: the number of players or a combination, and what controls each player
-    presetBox = new ComboBox<>();
-    presetBox.getItems().setAll(GameSetup.presets());
-    presetBox.setMaxWidth(Double.MAX_VALUE);
-    for (int i = 0; i < GameSetup.MAX_PLAYERS; i++) {
-      var swatch = new Rectangle(14, 14, FxColors.of(RiskConfig.playerColor(i)));
-      swatch.setStroke(Color.BLACK);
-      var kindBox = new ComboBox<PlayerKind>();
-      kindBox.getItems().setAll(PlayerKind.values());
-      kindBoxes.add(kindBox);
-      var row = new HBox(4, swatch, new Label("Player " + (i + 1)), kindBox);
-      row.setAlignment(Pos.CENTER_LEFT);
-      kindRows.add(row);
+  /** The most each seat has been high, since the hint comes and goes, and the rectangle that is safe from the players must not. */
+  private final double[] seatHeights = new double[GameSetup.MAX_PLAYERS];
+
+  /**
+   * The part of the table that no player covers, whoever's turn it is: what is left when the seats in the corners are taken away,
+   * the cards on the left and right, and the rows, with the hint, at the top and bottom. A hint is as wide as the table is not, so
+   * it is the height of the rows that is reserved for it, not the width. Null before the table has a size.
+   */
+  private Bounds safeArea(Pane table) {
+    if (table.getWidth() <= 0 || table.getHeight() <= 0) {
+      return null;
     }
-    presetBox.valueProperty().subscribe(preset -> {
-      if (preset != null) {
-        applyPreset(preset.setup());
+    double margin = 8;
+    double left = 0, right = 0, top = 0, bottom = 0;
+    for (int i = 0; i < seats.size(); i++) {
+      var seat = seats.get(i);
+      seatHeights[i] = Math.max(seatHeights[i], seat.row().getHeight());
+      boolean bottomSeat = i == 0 || i == 3, leftSeat = i == 0 || i == 1;
+      double width = seat.box().getWidth() + 2 * margin, height = seatHeights[i] + 2 * margin;
+      if (leftSeat) {
+        left = Math.max(left, width);
+      } else {
+        right = Math.max(right, width);
       }
-    });
+      if (bottomSeat) {
+        bottom = Math.max(bottom, height);
+      } else {
+        top = Math.max(top, height);
+      }
+    }
+    double width = table.getWidth() - left - right, height = table.getHeight() - top - bottom;
+    // a table too small to have any such rectangle has a point in the middle, which is then what the map must have
+    double x = width > 0 ? left : (left + table.getWidth() - right) / 2, y = height > 0 ? top : (top + table.getHeight() - bottom) / 2;
+    return new BoundingBox(x, y, Math.max(width, 0), Math.max(height, 0));
+  }
+
+  /** The controls of the settings and of the bar, which are made first, since they work together. */
+  private void createControls() {
     showNamesBox = new CheckBox("Show territory names");
     showNamesBox.setSelected(true);
     showNamesBox.selectedProperty().subscribe(show -> worldView.setShowNames(show));
@@ -320,9 +341,6 @@ public class PlayApp extends Application {
     editLabelsBox.setTooltip(new Tooltip("Drag the number and name of a territory to move them, and double-click to put them back. "
         + "When switched off, the places can be saved for the map generator. Only for maps that have a file for it."));
     editLabelsBox.selectedProperty().addListener((_, _, editing) -> editLabelsChanged(editing));
-    mapBox = new ComboBox<>();
-    mapBox.getItems().setAll(GameMap.all());
-    mapBox.setValue(GameMap.CLASSIC);
     keepArmiesBackBox = new CheckBox("Keep armies back");
     keepArmiesBackBox.setTooltip(new Tooltip("After a conquest, move in as many armies as you choose, but at least as many as dice were rolled. Bots move in all they can."));
     eliminationBonusBox = new CheckBox("Bonus for eliminating a player");
@@ -337,7 +355,7 @@ public class PlayApp extends Application {
   /** The slim bar: new game, what is happening, the speed of the bots and play, pause and step, help and settings. */
   private Parent createBar() {
     var newGameButton = new Button("New game");
-    newGameButton.setOnAction(_ -> showNewGameCard(true));
+    newGameButton.setOnAction(_ -> setSetupMode(! setupMode));
     statusLabel = new Label();
     statusLabel.setStyle("-fx-font-size: 13; -fx-font-weight: bold");
     statusLabel.setMinWidth(0);
@@ -387,24 +405,53 @@ public class PlayApp extends Application {
       popup.hide();
     } else {
       var bounds = button.localToScreen(button.getBoundsInLocal());
-      popup.show(button, bounds.getMaxX() - width - 24, bounds.getMaxY() + 4);
+      // its right edge is where the button's is, and it is not off the left of the screen. A popup has no size until it is shown and
+      // laid out, so the size it will get is asked of its content.
+      popup.show(button, Math.max(0, bounds.getMaxX() - popupSize(popup)[0]), bounds.getMaxY() + 4);
     }
   }
 
-  /** The cog button in the bar, which shows the settings of the view in a popup that closes when clicking outside it. */
+  /** The width and height that the content of a popup wants, since the popup itself has no size until it has been shown and laid out. */
+  private static double[] popupSize(Popup popup) {
+    if (popup.getContent().getFirst() instanceof javafx.scene.layout.Region content) {
+      content.applyCss();
+      return new double[] {content.prefWidth(-1), content.prefHeight(-1)};
+    }
+    return new double[] {0, 0};
+  }
+
+  /**
+   * The cog button in the bar, which shows the settings in a popup that closes when clicking outside it: the view, which is changed
+   * during a game, and the rules, which are read when a new game starts. The groups are side by side when the window is wide,
+   * and above each other when it is tall.
+   */
   private Button createSettingsButton() {
     var button = new Button();
     button.setGraphic(Icons.gear(16, Icons.DARK));
-    button.setTooltip(new Tooltip("Settings of the view"));
-    var content = new VBox(8, showNamesBox, showRegionsBox, editLabelsBox);
-    var frame = new VBox(content);
+    button.setTooltip(new Tooltip("Settings"));
+    var note = new Label("Read when a new game starts.");
+    note.setStyle("-fx-text-fill: gray;");
+    var frame = new VBox();
     frame.setPadding(new Insets(12));
     frame.setStyle("-fx-background-color: -fx-background; -fx-border-color: gray; -fx-background-radius: 4; -fx-border-radius: 4;");
     var popup = new Popup();
     popup.setAutoHide(true);
     popup.getContent().add(frame);
-    button.setOnAction(_ -> togglePopup(popup, button, 190));
+    button.setOnAction(_ -> {
+      var view = new VBox(8, groupTitle("View"), showNamesBox, showRegionsBox, editLabelsBox);
+      var rules = new VBox(8, groupTitle("Rules"), keepArmiesBackBox, conquestBonusBox, eliminationBonusBox, note);
+      var scene = button.getScene();
+      boolean wide = scene != null && scene.getWidth() > scene.getHeight();
+      frame.getChildren().setAll(wide ? new HBox(24, view, rules) : new VBox(16, view, rules));
+      togglePopup(popup, button, 190);
+    });
     return button;
+  }
+
+  private static Label groupTitle(String text) {
+    var title = new Label(text);
+    title.setStyle("-fx-font-weight: bold;");
+    return title;
   }
 
   /** The card of a player, with the kind, and the numbers of territories and armies. */
@@ -435,65 +482,21 @@ public class PlayApp extends Application {
     skip.setVisible(false);
     skip.setManaged(false);
     skip.setOnAction(_ -> endPhase());
-    var row = left ? new HBox(8, box, hint, skip) : new HBox(8, skip, hint, box);
+    // the button comes after the hint, reading from the left, on every seat: so next to the card on the right-hand seats
+    var row = left ? new HBox(8, box, hint, skip) : new HBox(8, hint, skip, box);
     // the card and the hint are centered on each other, and the map under them gets the taps, but the button gets its own
     row.setAlignment(left ? Pos.CENTER_LEFT : Pos.CENTER_RIGHT);
+    // the card lets taps through to the map, except when setting up a game, when a tap on it is to choose who plays that seat
     box.setMouseTransparent(true);
+    box.setOnMouseClicked(_ -> {
+      if (setupMode) {
+        showKindPopup(index);
+      }
+    });
     hint.setMouseTransparent(true);
     row.setPickOnBounds(false);
     row.setVisible(false);
     return new Seat(row, box, swatch, title, counts, hint, skip);
-  }
-
-  /** The card for a new game, over the map: what to play, on which map, and with which rules. Not shown until asked for. */
-  private StackPane createNewGameCard(Pane table) {
-    var kinds = new FlowPane(12, 4);
-    kindRows.forEach(row -> kinds.getChildren().add(row));
-    var rules = new VBox(4, keepArmiesBackBox, conquestBonusBox, eliminationBonusBox);
-    var startButton = new Button("Start");
-    startButton.setDefaultButton(true);
-    startButton.setOnAction(_ -> {
-      startNewGame();
-      showNewGameCard(false);
-    });
-    cancelNewGameButton = new Button("Cancel");
-    cancelNewGameButton.setOnAction(_ -> showNewGameCard(false));
-    var title = new Label("New game");
-    title.setStyle("-fx-font-size: 16; -fx-font-weight: bold;");
-    var card = new VBox(10, title, new Label("Players"), presetBox, kinds, new Label("Map"), mapBox, new Label("Rules"), rules,
-        new HBox(10, startButton, cancelNewGameButton));
-    card.setPadding(new Insets(16));
-    card.setMaxWidth(420);
-    card.setStyle("-fx-background-color: #f4f4f4; -fx-background-radius: 8; -fx-border-color: gray; -fx-border-radius: 8;");
-    // the card is in the middle of what the scroll pane shows, which is all there is room for, and it scrolls if the card is taller
-    var holder = new VBox(card);
-    holder.setAlignment(Pos.CENTER);
-    var scroll = new ScrollPane(holder);
-    scroll.setFitToWidth(true);
-    scroll.setFitToHeight(true);
-    scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-    // transparent around the card, but with a light background color to the text in it, which is dark text on a light card
-    scroll.setStyle("-fx-background-color: transparent; -fx-background: #f4f4f4;");
-    scroll.skinProperty().subscribe(_ -> {
-      var viewport = scroll.lookup(".viewport");
-      if (viewport != null) {
-        viewport.setStyle("-fx-background-color: transparent;");
-      }
-    });
-    scroll.setMaxWidth(440);
-    // it fits in the room there is, also on a phone turned sideways, and scrolls if there isn't enough
-    scroll.maxHeightProperty().bind(table.heightProperty().subtract(16));
-    var overlay = new StackPane(scroll);
-    overlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.35);");
-    overlay.setVisible(false);
-    return overlay;
-  }
-
-  /** Shows the card for a new game over the map, or hides it. A game that is going on can be kept by cancelling. */
-  void showNewGameCard(boolean show) {
-    newGameOverlay.setVisible(show);
-    cancelNewGameButton.setVisible(match != null);
-    cancelNewGameButton.setManaged(match != null);
   }
 
   /** Editing the places of the labels is switched on, and then off, which asks whether to save what was moved. */
@@ -562,40 +565,173 @@ public class PlayApp extends Application {
 
   // setup
 
-  private void applyPreset(GameSetup preset) {
-    for (int i = 0; i < kindBoxes.size(); i++) {
-      boolean used = i < preset.playerCount();
-      kindRows.get(i).setVisible(used);
-      kindRows.get(i).setManaged(used);
-      if (used) {
-        kindBoxes.get(i).setValue(preset.kinds().get(i));
+  /** What is over the table when setting up a game: an explanation, the choice of map, and buttons for starting the game and for cancelling. */
+  private Pane createSetupLayer() {
+    var group = new ToggleGroup();
+    var maps = new HBox(8);
+    maps.setAlignment(Pos.CENTER);
+    for (var map : GameMap.all()) {
+      var mapButton = new ToggleButton(map.name());
+      // a picture of the map above its name
+      mapButton.setGraphic(MapThumbnail.of(map, 110, 72));
+      mapButton.setContentDisplay(javafx.scene.control.ContentDisplay.TOP);
+      mapButton.setToggleGroup(group);
+      mapButton.setUserData(map);
+      mapButton.setMinWidth(130);
+      mapButton.setOnAction(_ -> chosenMap = map);
+      mapButtons.add(mapButton);
+      maps.getChildren().add(mapButton);
+    }
+    // one map is always chosen
+    group.selectedToggleProperty().addListener((_, old, now) -> {
+      if (now == null && old != null) {
+        old.setSelected(true);
       }
+    });
+    startButton = new Button();
+    startButton.setGraphic(Icons.check(18, Color.WHITE));
+    startButton.setStyle("-fx-background-color: #2e7d32; -fx-background-radius: 22; -fx-min-width: 56; -fx-min-height: 44;");
+    startButton.setTooltip(new Tooltip("Start the game"));
+    startButton.setOnAction(_ -> {
+      startNewGame();
+      setSetupMode(false);
+    });
+    var cancelButton = new Button();
+    cancelButton.setGraphic(Icons.cross(16, Color.WHITE));
+    cancelButton.setStyle("-fx-background-color: #b71c1c; -fx-background-radius: 22; -fx-min-width: 56; -fx-min-height: 44;");
+    cancelButton.setTooltip(new Tooltip("Keep the game that is going"));
+    cancelButton.setOnAction(_ -> {
+      showSetup(setup);
+      setSetupMode(false);
+    });
+    var buttons = new HBox(16, cancelButton, startButton);
+    buttons.setAlignment(Pos.CENTER);
+    // no frame around any of it, so it doesn't look like a dialog: the explanation is a pill like the hint at the top, below the seats there,
+    // the map choice is in the middle, and the buttons are at the bottom, above the seats there
+    var explanation = new Label("Tap a corner to choose who plays");
+    explanation.setWrapText(true);
+    explanation.setMaxWidth(320);
+    // a wrapped label otherwise gets the height of one line from a layout that doesn't know the width, and cuts the text off
+    explanation.setMinHeight(Region.USE_PREF_SIZE);
+    explanation.setTextAlignment(TextAlignment.CENTER);
+    explanation.setStyle("-fx-background-color: rgba(30, 30, 30, 0.85); -fx-text-fill: white; -fx-font-size: 15; -fx-font-weight: bold; "
+        + "-fx-padding: 6 14 6 14; -fx-background-radius: 12;");
+    explanation.setMouseTransparent(true);
+    var layer = new BorderPane();
+    layer.setTop(explanation);
+    BorderPane.setAlignment(explanation, Pos.TOP_CENTER);
+    BorderPane.setMargin(explanation, new Insets(58, 8, 0, 8));
+    layer.setCenter(maps);
+    layer.setBottom(buttons);
+    BorderPane.setAlignment(buttons, Pos.BOTTOM_CENTER);
+    BorderPane.setMargin(buttons, new Insets(0, 0, 58, 0));
+    layer.setPickOnBounds(false);
+    layer.setVisible(false);
+    return layer;
+  }
+
+  /**
+   * Switches to setting up a new game on the table, where the seats show who plays them, and can be tapped to change that, or back
+   * to the game. The game that is going on is not changed until a new one is started, and the bots wait.
+   */
+  void setSetupMode(boolean on) {
+    if (setupMode == on) {
+      return;
+    }
+    setupMode = on;
+    setupLayer.setVisible(on);
+    for (int i = 0; i < seats.size(); i++) {
+      seats.get(i).box().setMouseTransparent(! on);
+    }
+    if (on) {
+      timer.stop();
+      mapButtons.forEach(mapButton -> mapButton.setSelected(mapButton.getUserData() == chosenMap));
+      numberMenu.hide();
+    } else {
+      scheduleBotMove();
+    }
+    updateSetupControls();
+    if (match != null) {
+      render();
     }
   }
 
-  /** Shows a setup in the controls: the matching ready-made choice, if there is one, and the kind of each player. */
+  private int takenSeats() {
+    return (int) java.util.Arrays.stream(seatKinds).filter(java.util.Objects::nonNull).count();
+  }
+
+  /** A game needs two players, so it can only be started when two seats are taken. */
+  private void updateSetupControls() {
+    startButton.setDisable(takenSeats() < GameSetup.MIN_PLAYERS);
+  }
+
+  /**
+   * A popup of the choices for a seat, in two columns of large buttons next to the card of the seat: who plays it, or that it is empty.
+   * The default of the seat comes first, since that is the usual choice. It is not a list, which scrolls when there is not room for it,
+   * and on a touch screen a tap that moves a little is then a scroll and not a choice.
+   */
+  private void showKindPopup(int seat) {
+    var kinds = new ArrayList<>(List.of(PlayerKind.values()));
+    var seatDefault = GameSetup.SEAT_DEFAULTS.get(seat);
+    kinds.remove(seatDefault);
+    kinds.addFirst(seatDefault);
+    var options = new ArrayList<PlayerKind>(kinds);
+    // an empty seat is null
+    options.add(null);
+    var popup = new Popup();
+    popup.setAutoHide(true);
+    var grid = new GridPane();
+    grid.setHgap(8);
+    grid.setVgap(8);
+    grid.setPadding(new Insets(10));
+    grid.setStyle("-fx-background-color: -fx-background; -fx-border-color: gray; -fx-background-radius: 6; -fx-border-radius: 6;");
+    for (int i = 0; i < options.size(); i++) {
+      var kind = options.get(i);
+      var choice = new Button(kind == null ? "Off" : kind.label());
+      choice.setMinSize(130, 44);
+      if (kind == seatKinds[seat]) {
+        choice.setStyle("-fx-font-weight: bold; -fx-border-color: #333333; -fx-border-width: 2;");
+      }
+      choice.setOnAction(_ -> {
+        seatKinds[seat] = kind;
+        popup.hide();
+        updateSetupControls();
+        updateStatus();
+      });
+      grid.add(choice, i % 2, i / 2);
+    }
+    popup.getContent().add(grid);
+    var box = seats.get(seat).box();
+    var bounds = box.localToScreen(box.getBoundsInLocal());
+    // below a card at the top and above one at the bottom, and on the same side as the card, kept on the screen
+    boolean bottom = seat == 0 || seat == 3, left = seat == 0 || seat == 1;
+    var size = popupSize(popup);
+    var screens = Screen.getScreensForRectangle(bounds.getMinX(), bounds.getMinY(), 1, 1);
+    var visible = (screens.isEmpty() ? Screen.getPrimary() : screens.getFirst()).getVisualBounds();
+    double x = left ? bounds.getMinX() : bounds.getMaxX() - size[0];
+    double y = bottom ? bounds.getMinY() - size[1] - 4 : bounds.getMaxY() + 4;
+    popup.show(box, Math.max(visible.getMinX(), Math.min(x, visible.getMaxX() - size[0])),
+        Math.max(visible.getMinY(), Math.min(y, visible.getMaxY() - size[1])));
+  }
+
+  /** Shows a setup in the seats: the kind of each. */
   private void showSetup(GameSetup shown) {
-    presetBox.getItems().stream().filter(preset -> preset.setup().equals(shown)).findFirst().ifPresent(presetBox::setValue);
-    if (presetBox.getValue() == null || presetBox.getValue().setup().playerCount() != shown.playerCount()) {
-      presetBox.getItems().stream().filter(preset -> preset.setup().playerCount() == shown.playerCount()).findFirst().ifPresent(presetBox::setValue);
+    System.arraycopy(shown.seatKinds(), 0, seatKinds, 0, seatKinds.length);
+    if (startButton != null) {
+      updateSetupControls();
     }
-    applyPreset(shown);
   }
 
-  /** The setup as chosen in the controls. */
+  /** The setup as chosen in the seats. */
   private GameSetup chosenSetup() {
-    int count = presetBox.getValue().setup().playerCount();
-    return new GameSetup(kindBoxes.subList(0, count).stream().map(ComboBox::getValue).toList());
+    return GameSetup.ofSeats(seatKinds);
   }
 
-  /** Starts a game with the players as chosen in the controls. */
+  /** Starts a game with the players as chosen in the seats, and the map. */
   void startNewGame() {
-    if (presetBox.getValue() == null) {
-      presetBox.getItems().stream().filter(preset -> preset.name().equals(DEFAULT_PRESET)).findFirst().ifPresent(presetBox::setValue);
-    }
     var chosen = chosenSetup();
     var rules = new Rules(keepArmiesBackBox.isSelected(), conquestBonusBox.isSelected(), eliminationBonusBox.isSelected());
-    startGame(chosen, chosen.fortifyMode(), rules, mapBox.getValue(), nextSeed++);
+    startGame(chosen, chosen.fortifyMode(), rules, chosenMap, nextSeed++);
   }
 
   void startGame(GameSetup newSetup, FortifyMode fortifyMode, long seed) {
@@ -611,6 +747,7 @@ public class PlayApp extends Application {
     // a new map has its own labels, so editing the labels of the last one ends, with the question whether to save
     editLabelsBox.setSelected(false);
     currentMap = map;
+    chosenMap = map;
     editLabelsBox.setDisable(map.labelOffsetsFile() == null);
     var bots = new ArrayList<Bot>();
     for (var kind : newSetup.kinds()) {
@@ -663,6 +800,9 @@ public class PlayApp extends Application {
 
   /** The mouse button was released on a territory: a short press does the default action, and a long press shows a menu of the variants. */
   void territoryReleased(WorldView.TerritoryRelease release) {
+    if (setupMode) {
+      return;
+    }
     if (release.held()) {
       territoryMenu(release.territory(), release.screenX(), release.screenY());
     } else {
@@ -904,7 +1044,9 @@ public class PlayApp extends Application {
           outlines.put(territory, selection == HumanTurn.Selection.SOURCE ? Color.BLACK : Color.DARKGRAY));
     }
     outlines.putAll(lastMoveOutlines);
-    worldView.setMarkedTerritories(outlines);
+    // when setting up a new game, the map is quiet: light grey, without the outlines of the game that is going on
+    worldView.setDimmed(setupMode);
+    worldView.setMarkedTerritories(setupMode ? Map.of() : outlines);
     updateStatus();
     updateControls();
   }
@@ -926,24 +1068,43 @@ public class PlayApp extends Application {
     int toPlace = env.risk().currentTurnState() instanceof TurnState.Reinforcing reinforcing ? reinforcing.totalArmies() : 0;
     for (int i = 0; i < seats.size(); i++) {
       var seat = seats.get(i);
-      boolean used = i < env.players().size();
-      seat.row().setVisible(used);
-      if (! used) {
+      var color = RiskConfig.playerColor(i);
+      if (setupMode) {
+        // who plays the seat in the game that is being set up, which can be changed by tapping the card
+        var kind = seatKinds[i];
+        seat.row().setVisible(true);
+        seat.title().setText("Player %d · %s".formatted(i + 1, kind == null ? "Off" : kind.label()));
+        seat.counts().setText("Tap to change");
+        seat.box().setOpacity(kind == null ? 0.55 : 1.0);
+        seat.box().setStyle(seatStyle(color, 3));
         continue;
       }
-      var player = env.players().get(i);
+      var player = playerOfSeat(i);
+      seat.row().setVisible(player != null);
+      if (player == null) {
+        continue;
+      }
       var territories = env.risk().playerTerritories(player);
       boolean current = ! match.isDone() && player == env.currentPlayer();
-      seat.title().setText("%s · %s".formatted(player.name(), setup.kinds().get(i).label()));
+      seat.title().setText("%s · %s".formatted(player.name(), setup.kinds().get(env.playerIndex(player)).label()));
       seat.counts().setText("%d terr. · %d armies%s".formatted(territories.size(),
           territories.stream().mapToInt(Territory::numArmies).sum(), current && toPlace > 0 ? " · +" + toPlace : ""));
       // the player whose turn it is has a thick frame in the color of the player, and the others fade
-      var color = RiskConfig.playerColor(i);
       boolean alive = ! territories.isEmpty();
       seat.box().setOpacity(alive ? (current ? 1.0 : 0.8) : 0.45);
-      seat.box().setStyle("-fx-background-color: rgba(255, 255, 255, 0.88); -fx-background-radius: 8; -fx-border-radius: 8; "
-          + "-fx-border-color: %s; -fx-border-width: %d;".formatted(css(color), current ? 4 : 1));
+      seat.box().setStyle(seatStyle(color, current ? 4 : 1));
     }
+  }
+
+  private static String seatStyle(no.hal.risk.PlayerColor color, int frame) {
+    return "-fx-background-color: rgba(255, 255, 255, 0.88); -fx-background-radius: 8; -fx-border-radius: 8; "
+        + "-fx-border-color: %s; -fx-border-width: %d;".formatted(css(color), frame);
+  }
+
+  /** The player in the seat in the game that is going on, or null if the seat is empty. */
+  private Player playerOfSeat(int seat) {
+    int player = setup.playerOfSeat(seat);
+    return player < 0 ? null : env().players().get(player);
   }
 
   private static String css(no.hal.risk.PlayerColor color) {
@@ -961,7 +1122,7 @@ public class PlayApp extends Application {
     var current = match.isDone() ? null : env().currentPlayer();
     for (int i = 0; i < seats.size(); i++) {
       var seat = seats.get(i);
-      boolean here = human && i < env().players().size() && env().players().get(i) == current;
+      boolean here = human && ! setupMode && current != null && playerOfSeat(i) == current;
       seat.hint().setVisible(here);
       seat.hint().setManaged(here);
       // ending the attack, or skipping the fortification, has no argument, so it is a button, and there is nothing to skip when reinforcing

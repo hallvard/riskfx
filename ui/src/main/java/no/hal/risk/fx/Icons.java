@@ -8,7 +8,11 @@ import javafx.scene.shape.FillRule;
 import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
+import javafx.scene.shape.Line;
 import javafx.scene.shape.Polygon;
+import javafx.scene.shape.Polyline;
+import javafx.scene.shape.StrokeLineCap;
+import javafx.scene.shape.StrokeLineJoin;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.ClosePath;
 
@@ -58,6 +62,29 @@ public final class Icons {
     triangle.setFill(color);
     bar.setFill(color);
     return new Group(triangle, bar);
+  }
+
+  /** A check mark, for accepting. */
+  public static Node check(double size, Paint color) {
+    var mark = new Polyline(0, size * 0.55, size * 0.38, size * 0.95, size, size * 0.05);
+    mark.setStroke(color);
+    mark.setStrokeWidth(size * 0.16);
+    mark.setStrokeLineCap(StrokeLineCap.ROUND);
+    mark.setStrokeLineJoin(StrokeLineJoin.ROUND);
+    mark.setFill(null);
+    return new Group(mark);
+  }
+
+  /** A cross, for cancelling. */
+  public static Node cross(double size, Paint color) {
+    var first = new Line(0, 0, size, size);
+    var second = new Line(0, size, size, 0);
+    for (var line : new Line[] {first, second}) {
+      line.setStroke(color);
+      line.setStrokeWidth(size * 0.16);
+      line.setStrokeLineCap(StrokeLineCap.ROUND);
+    }
+    return new Group(first, second);
   }
 
   /** Default color for an icon on a light background. */

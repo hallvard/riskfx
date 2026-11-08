@@ -20,8 +20,26 @@ public record RiskConfig(
     float initialArmiesPrTerritory,
     int playerCount,
     FortifyMode fortifyMode,
-    Rules rules
+    Rules rules,
+    List<Integer> seats
   ) {
+
+  /**
+   * @param seats the seat of each player, from 0, or null for the seats 0 to {@code playerCount - 1}. A game with fewer players than seats
+   *   can leave any seat empty, and each player has the name and color of its seat, so they are the same however many play.
+   */
+  public RiskConfig {
+    if (seats != null) {
+      seats = List.copyOf(seats);
+      if (seats.size() != playerCount || seats.stream().anyMatch(seat -> seat < 0 || seat >= colors.length) || seats.stream().distinct().count() != seats.size()) {
+        throw new IllegalArgumentException("Need a seat from 0 to %d for each of the %d players: %s".formatted(colors.length - 1, playerCount, seats));
+      }
+    }
+  }
+
+  public RiskConfig(Path continentsPath, Path bordersPath, float initialArmiesPrTerritory, int playerCount, FortifyMode fortifyMode, Rules rules) {
+    this(continentsPath, bordersPath, initialArmiesPrTerritory, playerCount, fortifyMode, rules, null);
+  }
 
   /**
    * Player colors that contrast with the colors used to mark the last move in the user interface
@@ -46,26 +64,32 @@ public record RiskConfig(
   }
 
   public RiskConfig withPlayerCount(int playerCount) {
-    return new RiskConfig(continentsPath, bordersPath, initialArmiesPrTerritory, playerCount, fortifyMode, rules);
+    return new RiskConfig(continentsPath, bordersPath, initialArmiesPrTerritory, playerCount, fortifyMode, rules, null);
+  }
+
+  /** Has the players in the given seats, which also decides the number of players. */
+  public RiskConfig withSeats(List<Integer> seats) {
+    return new RiskConfig(continentsPath, bordersPath, initialArmiesPrTerritory, seats.size(), fortifyMode, rules, seats);
   }
 
   public RiskConfig withFortifyMode(FortifyMode fortifyMode) {
-    return new RiskConfig(continentsPath, bordersPath, initialArmiesPrTerritory, playerCount, fortifyMode, rules);
+    return new RiskConfig(continentsPath, bordersPath, initialArmiesPrTerritory, playerCount, fortifyMode, rules, seats);
   }
 
   /** Plays on another map. */
   public RiskConfig withMap(GameMap map) {
-    return new RiskConfig(map.continentsPath(), map.bordersPath(), initialArmiesPrTerritory, playerCount, fortifyMode, rules);
+    return new RiskConfig(map.continentsPath(), map.bordersPath(), initialArmiesPrTerritory, playerCount, fortifyMode, rules, seats);
   }
 
   public RiskConfig withRules(Rules rules) {
-    return new RiskConfig(continentsPath, bordersPath, initialArmiesPrTerritory, playerCount, fortifyMode, rules);
+    return new RiskConfig(continentsPath, bordersPath, initialArmiesPrTerritory, playerCount, fortifyMode, rules, seats);
   }
 
   public Risk createRisk() {
     List<Continent> continents = loadContinents();
     List<Player> players = IntStream.range(0, playerCount)
-        .mapToObj(i -> new Player("Player " + (i + 1), colors[i]))
+        .mapToObj(i -> seats != null ? seats.get(i) : i)
+        .map(seat -> new Player("Player " + (seat + 1), colors[seat]))
         .toList();
     var risk = new Risk(continents, loadBorders(continents), players, fortifyMode, rules);
     risk.distributeInitialArmies(initialArmiesPrTerritory);
