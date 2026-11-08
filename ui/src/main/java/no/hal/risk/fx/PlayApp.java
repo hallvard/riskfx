@@ -251,6 +251,11 @@ public class PlayApp extends Application {
 
     createControls();
     var root = new BorderPane();
+    // the stylesheet, which is also a resource of the application that must be in the native build: a missing one is only a plainer look
+    var stylesheet = PlayApp.class.getResource("/riskfx.css");
+    if (stylesheet != null) {
+      root.getStylesheets().add(stylesheet.toExternalForm());
+    }
     root.setTop(createBar());
     mapViewport = new MapViewport(mapPane);
     mapViewport.setContentBounds(worldView::shapeBounds);
@@ -601,6 +606,7 @@ public class PlayApp extends Application {
     maps.setAlignment(Pos.CENTER);
     for (var map : GameMap.all()) {
       var mapButton = new ToggleButton(map.name());
+      mapButton.getStyleClass().add("map-button");
       mapButton.setToggleGroup(group);
       mapButton.setUserData(map);
       mapButton.setMinWidth(130);

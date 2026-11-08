@@ -62,6 +62,7 @@
                     <resourcesList>
                         <list>.*[.]json$</list>
                         <list>.*[.]weights$</list>
+                        <list>.*[.]css$</list>
                     </resourcesList>
                     <appIdentifier>no.hal.riskfx</appIdentifier>
                     <!--

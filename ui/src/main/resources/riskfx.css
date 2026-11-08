@@ -1,0 +1,20 @@
+/*
+ * Styling that is better said here than in the code. The stylesheet is loaded with the user interface (PlayApp), and for the native
+ * Android app it must be in the resources list of the plugin (mobile/pom.xml).
+ */
+
+/* The buttons for choosing a map: the chosen one is full color and has a thick frame and a tint, and the others are faded. */
+.map-button {
+  -fx-opacity: 0.6;
+  -fx-border-color: #b0b0b0;
+  -fx-border-width: 1;
+  -fx-border-radius: 5;
+  -fx-background-radius: 5;
+}
+
+.map-button:selected {
+  -fx-opacity: 1.0;
+  -fx-border-color: #1f5fbf;
+  -fx-border-width: 3;
+  -fx-background-color: #dce9ff;
+}
