@@ -29,6 +29,11 @@ public class BotMatchSkipTest {
     env = new RiskEnv(new RiskConfig(2), 100);
     match = new BotMatch(env, List.of(new HumanBot(), new GreedyBot()));
     match.reset(1, List.of(new HumanBot(), new GreedyBot()));
+    arrange();
+  }
+
+  /** The board described above, for the game as it is. */
+  private void arrange() {
     var risk = env.risk();
     for (var territory : risk.allTerritories()) {
       territory.setOccupant(risk.players().get(0), 2);
@@ -56,16 +61,30 @@ public class BotMatchSkipTest {
   }
 
   @Test
-  public void testTheAttackIsSkippedWhenNoTerritoryCanAttack() {
+  public void testTheAttackOfAHumanIsNotSkippedWhenNoTerritoryCanAttack() {
     reinforceAll();
     assertEquals(Phase.ATTACKING, env.phase());
     assertEquals(List.of(new Action.EndAttack()), env.legalActions());
+    // the human has to end it, or a press to skip it would also skip the fortification
+    assertTrue(match.skipForcedPhases().isEmpty());
+    assertEquals(Phase.ATTACKING, env.phase());
+    match.perform(new Action.EndAttack());
+    // armies can be moved, so the fortification is up to the player
+    assertTrue(match.skipForcedPhases().isEmpty());
+    assertEquals(Phase.FORTIFYING, env.phase());
+    assertTrue(match.isHumanTurn());
+  }
+
+  @Test
+  public void testTheAttackOfABotIsSkippedWhenNoTerritoryCanAttack() {
+    match.reset(1, List.of(new GreedyBot(), new HumanBot()));
+    arrange();
+    reinforceAll();
+    assertEquals(Phase.ATTACKING, env.phase());
     var moves = match.skipForcedPhases();
     assertEquals(1, moves.size());
     assertEquals(new Action.EndAttack(), moves.getFirst().action());
-    // armies can be moved, so the fortification is up to the player
     assertEquals(Phase.FORTIFYING, env.phase());
-    assertTrue(match.isHumanTurn());
   }
 
   @Test
@@ -80,7 +99,7 @@ public class BotMatchSkipTest {
   @Test
   public void testTheFortificationIsSkippedWhenNoArmiesCanBeMoved() {
     reinforceAll();
-    match.skipForcedPhases();
+    match.perform(new Action.EndAttack());
     assertEquals(Phase.FORTIFYING, env.phase());
     // one army everywhere: none can move
     for (var territory : env.risk().playerTerritories(env.players().get(0))) {
@@ -96,7 +115,7 @@ public class BotMatchSkipTest {
   }
 
   @Test
-  public void testBothPhasesAreSkippedInARow() {
+  public void testTheFortificationIsSkippedAfterTheHumanEndsTheAttackWhenNothingCanMove() {
     // nobody can attack, and after reinforcing nothing can be moved: the first player has one territory with enough armies,
     // which is next to enemy territories only
     var risk = env.risk();
@@ -112,12 +131,13 @@ public class BotMatchSkipTest {
     // Iceland has armies now and borders enemies, so it can attack
     assertEquals(Phase.ATTACKING, env.phase());
     assertTrue(match.skipForcedPhases().isEmpty());
-    // but when it can't (all armies gone, say), both phases pass and the other player is up
+    // but when it can't (all armies gone, say), the human ends the attack, and then the fortification passes and the other player is up
     iceland.setOccupant(risk.players().get(0), 1);
+    assertTrue(match.skipForcedPhases().isEmpty());
+    match.perform(new Action.EndAttack());
     var moves = match.skipForcedPhases();
-    assertEquals(2, moves.size());
-    assertEquals(new Action.EndAttack(), moves.get(0).action());
-    assertEquals(new Action.SkipFortify(), moves.get(1).action());
+    assertEquals(1, moves.size());
+    assertEquals(new Action.SkipFortify(), moves.getFirst().action());
     assertEquals(risk.players().get(1), env.currentPlayer());
   }
 

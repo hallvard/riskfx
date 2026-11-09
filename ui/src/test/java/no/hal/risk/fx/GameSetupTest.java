@@ -90,4 +90,19 @@ public class GameSetupTest {
     assertEquals(FortifyMode.ADJACENT, GameSetup.of(PlayerKind.HUMAN, PlayerKind.HUMAN).fortifyMode());
     assertEquals(FortifyMode.ADJACENT, GameSetup.of(PlayerKind.AI, PlayerKind.GREEDY, PlayerKind.GREEDY).fortifyMode());
   }
+
+  @Test
+  public void testEveryBotKindHasABotOfThatName() {
+    for (var kind : PlayerKind.values()) {
+      if (kind == PlayerKind.HUMAN || kind == PlayerKind.AI) {
+        assertEquals(null, kind.botName());
+      } else {
+        assertEquals(kind.botName(), no.hal.risk.ai.Bots.byName(kind.botName()).name(), kind.label());
+      }
+    }
+    // the human and the AI come first among the choices, and all the labels are different
+    assertEquals(PlayerKind.HUMAN, PlayerKind.values()[0]);
+    assertEquals(PlayerKind.AI, PlayerKind.values()[1]);
+    assertEquals(PlayerKind.values().length, java.util.Arrays.stream(PlayerKind.values()).map(PlayerKind::label).distinct().count());
+  }
 }

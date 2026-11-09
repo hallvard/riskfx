@@ -64,15 +64,20 @@ public class BotMatch {
   }
 
   /**
-   * Skips the phases where nothing can be done but ending them: the attack when no territory can attack,
-   * and the fortification when no armies can be moved. Returns the actions that were performed, in order.
+   * Skips the phases where nothing can be done but ending them: the fortification when no armies can be moved, and for bots the attack
+   * when no territory can attack. The attack of a human is not skipped, and must be ended by them. Returns the actions that were
+   * performed, in order.
    */
   public List<Move> skipForcedPhases() {
     var moves = new ArrayList<Move>();
     while (! env.isDone()) {
       var legal = env.legalActions();
-      boolean forced = legal.size() == 1 && (legal.getFirst() instanceof Action.EndAttack || legal.getFirst() instanceof Action.SkipFortify);
-      if (! forced) {
+      boolean forcedEnd = legal.size() == 1 && legal.getFirst() instanceof Action.EndAttack;
+      boolean forcedSkip = legal.size() == 1 && legal.getFirst() instanceof Action.SkipFortify;
+      // a human must end the attack, which can't be skipped for them, since pressing the button to skip it, as one does when there is
+      // nothing to attack, would then also skip the fortification, which is up to them if armies can be moved. Skipping a fortification
+      // that can't be done just passes the turn on, which is what the human expects.
+      if (! (forcedSkip || forcedEnd && ! isHumanTurn())) {
         break;
       }
       moves.add(perform(legal.getFirst()));

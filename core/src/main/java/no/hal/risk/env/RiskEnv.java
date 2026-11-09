@@ -31,6 +31,8 @@ public class RiskEnv {
   private final Map<Player, Integer> playerIndices = new IdentityHashMap<>();
 
   private int turns;
+  private int attacksThisTurn;
+  private int conquestsThisTurn;
 
   public RiskEnv(RiskConfig config, int maxTurns) {
     this.config = config;
@@ -53,6 +55,8 @@ public class RiskEnv {
   /** Starts a new game. The same seed gives the same game, if the same actions are performed. */
   public void reset(long seed) {
     turns = 0;
+    attacksThisTurn = 0;
+    conquestsThisTurn = 0;
     risk.reset(new Random(seed), config.initialArmiesPrTerritory());
   }
 
@@ -82,6 +86,16 @@ public class RiskEnv {
 
   public Player currentPlayer() {
     return risk.currentPlayer();
+  }
+
+  /** The number of attacks the current player has made in this turn. */
+  public int attacksThisTurn() {
+    return attacksThisTurn;
+  }
+
+  /** The number of territories the current player has conquered in this turn. */
+  public int conquestsThisTurn() {
+    return conquestsThisTurn;
   }
 
   /** The number of finished player turns. */
@@ -202,7 +216,11 @@ public class RiskEnv {
         var attacker = territory(from);
         var defender = territory(to);
         var attacking = (TurnState.Attacking) risk.currentTurnState();
-        attacking.attack(risk, attacker, defender, risk.maxAttackerDies(attacker), risk.maxDefenderDies(defender));
+        boolean conquered = attacking.attack(risk, attacker, defender, risk.maxAttackerDies(attacker), risk.maxDefenderDies(defender));
+        attacksThisTurn++;
+        if (conquered) {
+          conquestsThisTurn++;
+        }
       }
       case Action.EndAttack _ -> {
         requirePhase(action, Phase.ATTACKING);
@@ -240,6 +258,8 @@ public class RiskEnv {
 
   private void endTurn() {
     turns++;
+    attacksThisTurn = 0;
+    conquestsThisTurn = 0;
     risk.nextTurnState();
   }
 }

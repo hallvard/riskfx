@@ -233,7 +233,9 @@ public class HumanTurn {
         int left = env.risk().currentTurnState() instanceof TurnState.Reinforcing reinforcing ? reinforcing.totalArmies() : 0;
         yield "Reinforce: %d left".formatted(left);
       }
-      case ATTACKING -> from == null
+      case ATTACKING -> env.legalActions().size() == 1
+          ? "Nothing can attack: skip"
+          : from == null
           ? "Attack: pick a territory to attack from"
           : "Attack from %s (%d): pick a target".formatted(from.name(), from.numArmies());
       case FORTIFYING -> from == null

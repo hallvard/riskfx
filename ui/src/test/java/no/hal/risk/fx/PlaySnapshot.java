@@ -160,6 +160,26 @@ public class PlaySnapshot {
     app.worldView().setEditLabels(false);
     app.setSetupMode(true);
     snapshot("10-new-game-card");
+    // the icons of what controls a player, large
+    var icons = new javafx.scene.layout.HBox(24);
+    icons.setStyle("-fx-background-color: #f4f4f4; -fx-padding: 16;");
+    for (var kind : new PlayerKind[] {PlayerKind.HUMAN, PlayerKind.AI, PlayerKind.GREEDY, null}) {
+      icons.getChildren().add(Icons.forKind(kind, 64, Icons.DARK));
+    }
+    var small = new javafx.scene.layout.HBox(24);
+    small.setStyle("-fx-background-color: #f4f4f4; -fx-padding: 16;");
+    for (var kind : new PlayerKind[] {PlayerKind.HUMAN, PlayerKind.AI, PlayerKind.GREEDY, null}) {
+      small.getChildren().add(Icons.forKind(kind, 20, Icons.DARK));
+    }
+    var iconScene = new Scene(new javafx.scene.layout.VBox(icons, small), 400, 160);
+    var iconImage = iconScene.snapshot(null);
+    var iconBuffered = new BufferedImage((int) iconImage.getWidth(), (int) iconImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
+    for (int y = 0; y < iconBuffered.getHeight(); y++) {
+      for (int x = 0; x < iconBuffered.getWidth(); x++) {
+        iconBuffered.setRGB(x, y, iconImage.getPixelReader().getArgb(x, y));
+      }
+    }
+    javax.imageio.ImageIO.write(iconBuffered, "png", new File(directory, "12-icons.png"));
     // what is shown if the window could not be made
     scene.setRoot(app.failureContent(new IllegalStateException("The map could not be read", new java.io.UncheckedIOException(new java.io.FileNotFoundException("/maps/europe/continents.json")))));
     snapshot("11-failure");

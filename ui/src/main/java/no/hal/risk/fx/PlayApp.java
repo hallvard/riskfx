@@ -57,8 +57,7 @@ import no.hal.risk.Territory;
 import no.hal.risk.TurnState;
 import no.hal.risk.ai.Bot;
 import no.hal.risk.ai.BotMatch;
-import no.hal.risk.ai.CautiousBot;
-import no.hal.risk.ai.GreedyBot;
+import no.hal.risk.ai.Bots;
 import no.hal.risk.ai.HumanBot;
 import no.hal.risk.env.Action;
 import no.hal.risk.env.Phase;
@@ -116,7 +115,7 @@ public class PlayApp extends Application {
   private final List<Seat> seats = new ArrayList<>();
 
   /** The card of a player: colored as the player, with the kind of player, and the numbers of territories and armies. */
-  private record Seat(HBox row, VBox box, Rectangle swatch, Label title, Label counts, Label hint, Button skip) {
+  private record Seat(HBox row, VBox box, Rectangle swatch, HBox icon, Label title, Label counts, Label hint, Button skip) {
   }
 
   private static final String HELP = "Tap a territory to do the usual thing: place all the armies, attack, or move as many armies as possible. "
@@ -505,7 +504,10 @@ public class PlayApp extends Application {
         + "-fx-padding: 8 14 8 14; -fx-background-radius: 12;");
     hint.setVisible(false);
     hint.setManaged(false);
-    var box = new VBox(1, new HBox(5, swatch, title), counts);
+    // the icon of what controls the player, which changes with the player
+    var icon = new HBox();
+    icon.setAlignment(Pos.CENTER);
+    var box = new VBox(1, new HBox(5, swatch, icon, title), counts);
     box.setPadding(new Insets(3, 8, 3, 8));
     boolean left = index == 0 || index == 1;
     // the button ends the attack or skips the fortification, so it is only there in those phases, for a human
@@ -530,7 +532,7 @@ public class PlayApp extends Application {
     hint.setMouseTransparent(true);
     row.setPickOnBounds(false);
     row.setVisible(false);
-    return new Seat(row, box, swatch, title, counts, hint, skip);
+    return new Seat(row, box, swatch, icon, title, counts, hint, skip);
   }
 
   /** Editing the places of the labels is switched on, and then off, which asks whether to save what was moved. */
@@ -636,7 +638,7 @@ public class PlayApp extends Application {
       showSetup(setup);
       setSetupMode(false);
     });
-    var buttons = new HBox(16, cancelButton, startButton);
+    var buttons = new HBox(16, startButton, cancelButton);
     buttons.setAlignment(Pos.CENTER);
     // no frame around any of it, so it doesn't look like a dialog: the explanation is a pill like the hint at the top, below the seats there,
     // the map choice is in the middle, and the buttons are at the bottom, above the seats there
@@ -742,7 +744,10 @@ public class PlayApp extends Application {
     for (int i = 0; i < options.size(); i++) {
       var kind = options.get(i);
       var choice = new Button(kind == null ? "Off" : kind.label());
-      choice.setMinSize(130, 44);
+      choice.setGraphic(Icons.forKind(kind, 20, Icons.DARK));
+      choice.setGraphicTextGap(8);
+      choice.setAlignment(Pos.CENTER_LEFT);
+      choice.setMinSize(150, 44);
       if (kind == seatKinds[seat]) {
         choice.setStyle("-fx-font-weight: bold; -fx-border-color: #333333; -fx-border-width: 2;");
       }
@@ -807,8 +812,8 @@ public class PlayApp extends Application {
     for (var kind : newSetup.kinds()) {
       switch (kind) {
         case HUMAN -> bots.add(new HumanBot());
-        case GREEDY -> bots.add(new GreedyBot());
-        case CAUTIOUS -> bots.add(new CautiousBot());
+        // the rule-based bots are by name
+        case GREEDY, CAUTIOUS, DENIER, ERRATIC -> bots.add(Bots.byName(kind.botName()));
         case AI -> {
           try {
             bots.add(aiNetworks.botFor(newSetup.playerCount(), map));
@@ -1032,7 +1037,7 @@ public class PlayApp extends Application {
   private void skipForcedPhases() {
     var skipped = match.skipForcedPhases().stream()
         .filter(move -> move.bot() instanceof HumanBot)
-        .map(move -> move.action() instanceof Action.EndAttack ? "the attack, since no territory can attack" : "the fortification, since no armies can be moved")
+        .map(move -> "the fortification, since no armies can be moved")
         .toList();
     if (! skipped.isEmpty()) {
       hint = "Skipped " + String.join(" and ", skipped) + ".";
@@ -1128,6 +1133,7 @@ public class PlayApp extends Application {
         var kind = seatKinds[i];
         seat.row().setVisible(true);
         seat.title().setText("Player %d · %s".formatted(i + 1, kind == null ? "Off" : kind.label()));
+        seat.icon().getChildren().setAll(Icons.forKind(kind, 18, Icons.DARK));
         seat.counts().setText("Tap to change");
         seat.box().setOpacity(kind == null ? 0.55 : 1.0);
         seat.box().setStyle(seatStyle(color, 3));
@@ -1140,7 +1146,9 @@ public class PlayApp extends Application {
       }
       var territories = env.risk().playerTerritories(player);
       boolean current = ! match.isDone() && player == env.currentPlayer();
-      seat.title().setText("%s · %s".formatted(player.name(), setup.kinds().get(env.playerIndex(player)).label()));
+      var playerKind = setup.kinds().get(env.playerIndex(player));
+      seat.title().setText("%s · %s".formatted(player.name(), playerKind.label()));
+      seat.icon().getChildren().setAll(Icons.forKind(playerKind, 18, Icons.DARK));
       seat.counts().setText("%d terr. · %d armies%s".formatted(territories.size(),
           territories.stream().mapToInt(Territory::numArmies).sum(), current && toPlace > 0 ? " · +" + toPlace : ""));
       // the player whose turn it is has a thick frame in the color of the player, and the others fade
