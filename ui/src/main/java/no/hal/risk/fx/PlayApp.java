@@ -432,8 +432,13 @@ public class PlayApp extends Application {
     var helpButton = new Button();
     helpButton.setGraphic(Icons.of(Icons.HELP, 18, Icons.DARK));
     helpButton.setTooltip(new Tooltip("Help"));
-    var helpPopup = popupWith(new Label(HELP), 300);
-    helpButton.setOnAction(_ -> togglePopup(helpPopup, helpButton, 300));
+    var helpText = new Label(HELP);
+    var helpPopup = popupWith(helpText, 300);
+    helpButton.setOnAction(_ -> {
+      // what happened with the icon font is added to the text, to see why icons are boxes if they are
+      helpText.setText(HELP + "\n\nIcon font:\n" + Icons.fontReport());
+      togglePopup(helpPopup, helpButton, 300);
+    });
     var bar = new HBox(8, playButton, stopButton, statusLabel, spacer, speedSlider, mapButton, helpButton, createSettingsButton());
     bar.setAlignment(Pos.CENTER_LEFT);
     bar.setPadding(new Insets(4, 8, 4, 8));

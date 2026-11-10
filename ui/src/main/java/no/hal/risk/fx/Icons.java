@@ -7,7 +7,9 @@ import javafx.scene.paint.Paint;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
 import org.kordamp.ikonli.javafx.FontIcon;
+import org.kordamp.ikonli.javafx.IkonResolver;
 
 /**
  * Small icons. Most are glyphs of an icon font (Ikonli, with the Material Design Icons 2 set), which is a file in the application
@@ -36,9 +38,57 @@ public final class Icons {
   public static final String BOT = "mdi2r-robot";
   public static final String OFF = "mdi2b-block-helper";
 
+  private static final String FONT_FAMILY = "Material Design Icons";
+  private static final String FONT_FILE = "/META-INF/resources/materialdesignicons2/5.8.55/fonts/materialdesignicons-webfont.ttf";
+  private static final StringBuilder fontReport = new StringBuilder();
+  private static boolean fontChecked;
+
+  /**
+   * What happened when the font was loaded, for the help text: icons that are boxes with a cross instead mean that the font didn't load,
+   * as it didn't in the first native app on Android, and this says where it went wrong.
+   */
+  public static String fontReport() {
+    return fontReport.toString();
+  }
+
+  private static void report(String line) {
+    fontReport.append(line).append('\n');
+    System.err.println("Icon font: " + line);
+  }
+
+  /**
+   * Ikonli loads the font from a url, which a native app may not be able to do (it was not there on Android), so it is also loaded here
+   * from a stream before the first icon is made, which registers it by name, which is what an icon says in its style. Both are reported.
+   */
+  private static void loadFont() {
+    if (fontChecked) {
+      return;
+    }
+    fontChecked = true;
+    try {
+      report("font file on the class path: " + Icons.class.getResource(FONT_FILE));
+      try (var stream = Icons.class.getResourceAsStream(FONT_FILE)) {
+        var font = stream != null ? Font.loadFont(stream, 16) : null;
+        report("loaded from a stream: " + (font != null ? font.getFamily() : "no font"));
+      }
+      report("the family is known: " + Font.getFamilies().contains(FONT_FAMILY));
+    } catch (Throwable e) {
+      report("loading from a stream failed: " + e);
+    }
+  }
+
   /** The icon with the name (as the constants are) at the size, which is the height of it in pixels, and in the color. */
   public static Node of(String name, double size, Paint color) {
+    loadFont();
     var icon = new FontIcon(name);
+    if (fontReport.indexOf("Ikonli's own load") < 0) {
+      try {
+        var font = IkonResolver.getInstance().resolve(name).getFont();
+        report("Ikonli's own load: " + (font instanceof Font f ? f.getFamily() : "no font"));
+      } catch (Throwable e) {
+        report("Ikonli's own load failed: " + e);
+      }
+    }
     icon.setIconSize((int) Math.round(size));
     icon.setIconColor(color);
     return icon;
