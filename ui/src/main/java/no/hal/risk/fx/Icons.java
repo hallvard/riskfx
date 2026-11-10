@@ -66,15 +66,35 @@ public final class Icons {
     }
     fontChecked = true;
     try {
-      report("font file on the class path: " + Icons.class.getResource(FONT_FILE));
+      var url = Icons.class.getResource(FONT_FILE);
+      report("font file on the class path: " + (url != null));
+      report("javafx " + System.getProperty("javafx.runtime.version") + ", " + System.getProperty("os.name") + " "
+          + System.getProperty("os.arch") + ", " + System.getProperty("java.vm.name") + ", families: " + Font.getFamilies().size());
+      byte[] bytes;
       try (var stream = Icons.class.getResourceAsStream(FONT_FILE)) {
-        var font = stream != null ? Font.loadFont(stream, 16) : null;
-        report("loaded from a stream: " + (font != null ? font.getFamily() : "no font"));
+        bytes = stream != null ? stream.readAllBytes() : new byte[0];
+      }
+      report("bytes read: " + bytes.length);
+      report("from a stream: " + describe(Font.loadFont(new java.io.ByteArrayInputStream(bytes), 16)));
+      if (url != null) {
+        report("from the url: " + describe(Font.loadFont(url.toExternalForm(), 16)));
+      }
+      report("temp directory: " + System.getProperty("java.io.tmpdir"));
+      try {
+        var file = java.nio.file.Files.createTempFile("icons", ".ttf");
+        java.nio.file.Files.write(file, bytes);
+        report("from a file of " + java.nio.file.Files.size(file) + " bytes: " + describe(Font.loadFont(file.toUri().toString(), 16)));
+      } catch (Exception e) {
+        report("a temp file failed: " + e);
       }
       report("the family is known: " + Font.getFamilies().contains(FONT_FAMILY));
     } catch (Throwable e) {
-      report("loading from a stream failed: " + e);
+      report("loading failed: " + e);
     }
+  }
+
+  private static String describe(Font font) {
+    return font != null ? font.getFamily() : "no font";
   }
 
   /** The icon with the name (as the constants are) at the size, which is the height of it in pixels, and in the color. */
