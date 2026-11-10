@@ -75,17 +75,31 @@ public final class Icons {
         bytes = stream != null ? stream.readAllBytes() : new byte[0];
       }
       report("bytes read: " + bytes.length);
-      report("from a stream: " + describe(Font.loadFont(new java.io.ByteArrayInputStream(bytes), 16)));
-      if (url != null) {
-        report("from the url: " + describe(Font.loadFont(url.toExternalForm(), 16)));
-      }
-      report("temp directory: " + System.getProperty("java.io.tmpdir"));
-      try {
-        var file = java.nio.file.Files.createTempFile("icons", ".ttf");
-        java.nio.file.Files.write(file, bytes);
-        report("from a file of " + java.nio.file.Files.size(file) + " bytes: " + describe(Font.loadFont(file.toUri().toString(), 16)));
-      } catch (Exception e) {
-        report("a temp file failed: " + e);
+      var font = Font.loadFont(new java.io.ByteArrayInputStream(bytes), 16);
+      report("from a stream: " + describe(font));
+      if (font == null) {
+        // JavaFX copies the font to a temporary file when it is loaded from a stream or a url, and the temporary directory of a phone
+        // may not be one the app can write to: another directory is tried, with the font as a file there, and as the temporary directory
+        for (var property : new String[] {"java.io.tmpdir", "user.home", "user.dir", "java.home"}) {
+          var dir = System.getProperty(property);
+          report(property + ": " + dir);
+          if (dir == null || font != null) {
+            continue;
+          }
+          try {
+            var file = java.nio.file.Files.createTempFile(java.nio.file.Path.of(dir), "icons", ".ttf");
+            java.nio.file.Files.write(file, bytes);
+            font = Font.loadFont(file.toUri().toString(), 16);
+            report("  from a file there: " + describe(font));
+            if (font == null && ! property.equals("java.io.tmpdir")) {
+              System.setProperty("java.io.tmpdir", dir);
+              font = Font.loadFont(new java.io.ByteArrayInputStream(bytes), 16);
+              report("  from a stream, with that as the temporary directory: " + describe(font));
+            }
+          } catch (Exception e) {
+            report("  no file there: " + e.getClass().getSimpleName());
+          }
+        }
       }
       report("the family is known: " + Font.getFamilies().contains(FONT_FAMILY));
     } catch (Throwable e) {

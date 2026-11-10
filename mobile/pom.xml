@@ -71,10 +71,10 @@
                       initialiser calls Utils.forceInit(X.class), which does Class.forName with a name computed at run time, so a native
                       image can't find a class that isn't registered. Gluon registers the usual shapes, but not Polyline, which gave
                       "ClassNotFoundException: javafx.scene.shape.Polyline" in PolylineHelper. A class like that is added here.
-                    -->
                     <reflectionList>
                         <list>javafx.scene.shape.Polyline</list>
                     </reflectionList>
+                    -->
                     <releaseConfiguration>
                         <appLabel>RiskFx</appLabel>
                         <versionCode>${android.versionCode}</versionCode>
