@@ -398,7 +398,7 @@ public class PlayApp extends Application {
     conquestBonusBox = new CheckBox("Bonus after conquest");
     conquestBonusBox.setTooltip(new Tooltip("A turn gives %d armies and the continent bonuses, and %d more if a territory was conquered the turn before.".formatted(Risk.ALWAYS_REINFORCEMENT, Risk.CONQUEST_BONUS)));
     speedSlider = new Slider(0, 100, 70);
-    speedSlider.setPrefWidth(90);
+    speedSlider.setPrefWidth(160);
     speedSlider.setTooltip(new Tooltip("Speed of the bots"));
   }
 
@@ -436,7 +436,7 @@ public class PlayApp extends Application {
     helpButton.setTooltip(new Tooltip("Help"));
     var helpPopup = popupWith(new Label(HELP), 300);
     helpButton.setOnAction(_ -> showTextPopup(helpPopup, helpButton, 300));
-    var bar = new HBox(8, playButton, stopButton, statusLabel, spacer, speedSlider, mapButton, helpButton, createSettingsButton());
+    var bar = new HBox(8, playButton, stopButton, statusLabel, spacer, mapButton, helpButton, createSettingsButton());
     bar.setAlignment(Pos.CENTER_LEFT);
     bar.setPadding(new Insets(4, 8, 4, 8));
     updateTransport();
@@ -664,7 +664,7 @@ public class PlayApp extends Application {
     popup.setAutoHide(true);
     popup.getContent().add(frame);
     button.setOnAction(_ -> {
-      var view = new VBox(8, groupTitle("View"), showNamesBox, showRegionsBox, editLabelsBox);
+      var view = new VBox(8, groupTitle("View"), showNamesBox, showRegionsBox, editLabelsBox, new Label("Speed of the bots"), speedSlider);
       var rules = new VBox(8, groupTitle("Rules"), keepArmiesBackBox, conquestBonusBox, eliminationBonusBox, note);
       var scene = button.getScene();
       boolean wide = scene != null && scene.getWidth() > scene.getHeight();
