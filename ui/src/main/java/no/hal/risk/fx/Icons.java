@@ -4,131 +4,65 @@ import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
-import javafx.scene.shape.FillRule;
-import javafx.scene.shape.LineTo;
-import javafx.scene.shape.MoveTo;
-import javafx.scene.shape.Path;
-import javafx.scene.shape.ArcTo;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
-import javafx.scene.shape.Polygon;
-import javafx.scene.shape.Polyline;
-import javafx.scene.shape.StrokeLineCap;
-import javafx.scene.shape.StrokeLineJoin;
 import javafx.scene.shape.Rectangle;
-import javafx.scene.shape.ClosePath;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
- * Small icons, drawn as shapes. A symbol written as a character, such as a cog, is drawn by the font, and a device without a font that
- * has it (a phone running the native app, for instance) shows nothing, whereas a shape looks the same everywhere.
+ * Small icons. Most are glyphs of an icon font (Ikonli, with the Material Design Icons 2 set), which is a file in the application
+ * that is drawn the same everywhere, unlike a symbol written as a character, which is drawn by a font of the device, and shows
+ * nothing on one that has no font with it (a phone running the native app, for instance). The font is also loaded by the native
+ * application, see the resources list in the mobile module.
+ * <p>
+ * The icons are given by name, see the constants, which are the names the font has: <a href="https://pictogrammers.com/library/mdi/">
+ * pictogrammers.com/library/mdi</a>, with the prefix mdi2 and the first letter of the name, as in {@code mdi2p-play}.
+ * The two icons {@link #networkDrawn} and {@link #robotDrawn} are drawn as shapes instead, and are kept to be used again.
  */
 public final class Icons {
 
   private Icons() {
   }
 
-  /** A cog, for settings: a ring of teeth with a hole in the middle. */
-  public static Node gear(double size, Paint color) {
-    int teeth = 8;
-    double outer = size / 2, inner = outer * 0.72, hole = outer * 0.32;
-    var path = new Path();
-    path.setFillRule(FillRule.EVEN_ODD);
-    // the outline goes around, with each tooth as a flat top between two slanting sides
-    double step = 2 * Math.PI / teeth;
-    for (int tooth = 0; tooth < teeth; tooth++) {
-      double middle = tooth * step;
-      double[][] corners = {{inner, middle - step * 0.36}, {outer, middle - step * 0.2}, {outer, middle + step * 0.2}, {inner, middle + step * 0.36}};
-      for (int i = 0; i < corners.length; i++) {
-        double x = outer + corners[i][0] * Math.sin(corners[i][1]), y = outer - corners[i][0] * Math.cos(corners[i][1]);
-        path.getElements().add(tooth == 0 && i == 0 ? new MoveTo(x, y) : new LineTo(x, y));
-      }
-    }
-    path.getElements().add(new ClosePath());
-    // the hole, as a polygon, since the fill rule leaves out what is inside both
-    int sides = 16;
-    for (int i = 0; i < sides; i++) {
-      double angle = i * 2 * Math.PI / sides;
-      double x = outer + hole * Math.sin(angle), y = outer - hole * Math.cos(angle);
-      path.getElements().add(i == 0 ? new MoveTo(x, y) : new LineTo(x, y));
-    }
-    path.getElements().add(new ClosePath());
-    path.setFill(color);
-    path.setStroke(null);
-    return new Group(path);
-  }
+  public static final String SETTINGS = "mdi2c-cog";
+  public static final String PLAY = "mdi2p-play";
+  public static final String PAUSE = "mdi2p-pause";
+  public static final String STOP = "mdi2s-stop";
+  public static final String SKIP = "mdi2s-skip-next";
+  public static final String HELP = "mdi2h-help-circle-outline";
+  public static final String HUMAN = "mdi2a-account";
+  /** The AI, which is a neural network, is shown as a brain. */
+  public static final String AI = "mdi2b-brain";
+  public static final String BOT = "mdi2r-robot";
+  public static final String OFF = "mdi2b-block-helper";
 
-  /** Skip, as the button for the next track in a music player: a triangle pointing right, and a bar after it. */
-  public static Node skip(double size, Paint color) {
-    var triangle = new Polygon(0, 0, size * 0.72, size / 2, 0, size);
-    var bar = new Rectangle(size * 0.82, 0, size * 0.18, size);
-    triangle.setFill(color);
-    bar.setFill(color);
-    return new Group(triangle, bar);
-  }
-
-  /** Play: a triangle pointing right. */
-  public static Node play(double size, Paint color) {
-    var triangle = new Polygon(size * 0.1, 0, size * 0.95, size / 2, size * 0.1, size);
-    triangle.setFill(color);
-    return new Group(triangle);
-  }
-
-  /** Pause: two bars. */
-  public static Node pause(double size, Paint color) {
-    var left = new Rectangle(size * 0.12, 0, size * 0.28, size);
-    var right = new Rectangle(size * 0.6, 0, size * 0.28, size);
-    left.setFill(color);
-    right.setFill(color);
-    return new Group(left, right);
-  }
-
-  /** Stop: a square. */
-  public static Node stop(double size, Paint color) {
-    var square = new Rectangle(size * 0.05, size * 0.05, size * 0.9, size * 0.9);
-    square.setFill(color);
-    return new Group(square);
-  }
-
-  /** A check mark, for accepting. */
-  public static Node check(double size, Paint color) {
-    var mark = new Polyline(0, size * 0.55, size * 0.38, size * 0.95, size, size * 0.05);
-    mark.setStroke(color);
-    mark.setStrokeWidth(size * 0.16);
-    mark.setStrokeLineCap(StrokeLineCap.ROUND);
-    mark.setStrokeLineJoin(StrokeLineJoin.ROUND);
-    mark.setFill(null);
-    return new Group(mark);
-  }
-
-  /** A cross, for cancelling. */
-  public static Node cross(double size, Paint color) {
-    var first = new Line(0, 0, size, size);
-    var second = new Line(0, size, size, 0);
-    for (var line : new Line[] {first, second}) {
-      line.setStroke(color);
-      line.setStrokeWidth(size * 0.16);
-      line.setStrokeLineCap(StrokeLineCap.ROUND);
-    }
-    return new Group(first, second);
-  }
-
-  /** A person, for a human player: a head, and shoulders under it. */
-  public static Node person(double size, Paint color) {
-    var head = new Circle(size * 0.5, size * 0.28, size * 0.22);
-    var shoulders = new Path(
-        new MoveTo(size * 0.1, size),
-        new ArcTo(size * 0.4, size * 0.42, 0, size * 0.9, size, false, true),
-        new ClosePath());
-    head.setFill(color);
-    shoulders.setFill(color);
-    shoulders.setStroke(null);
-    return new Group(head, shoulders);
+  /** The icon with the name (as the constants are) at the size, which is the height of it in pixels, and in the color. */
+  public static Node of(String name, double size, Paint color) {
+    var icon = new FontIcon(name);
+    icon.setIconSize((int) Math.round(size));
+    icon.setIconColor(color);
+    return icon;
   }
 
   /**
-   * A small neural network, for the AI, which is one: three layers of three dots, with each dot joined to all the dots of the next layer.
+   * The icon of what controls a player: a person for a human, a brain for the AI, a robot for a bot that follows rules,
+   * and a crossed circle for no player, which is null.
    */
-  public static Node network(double size, Paint color) {
+  public static Node forKind(PlayerKind kind, double size, Paint color) {
+    if (kind == null) {
+      return of(OFF, size, color);
+    }
+    return switch (kind) {
+      case HUMAN -> of(HUMAN, size, color);
+      case AI -> of(AI, size, color);
+      default -> of(BOT, size, color);
+    };
+  }
+
+  /**
+   * A small neural network, drawn as shapes (the AI used to have it, and {@link #AI} is used now):  three layers of three dots, with each dot joined to all the dots of the next layer.
+   */
+  public static Node networkDrawn(double size, Paint color) {
     double[] columns = {0.12, 0.5, 0.88};
     double[] rows = {0.14, 0.5, 0.86};
     var group = new Group();
@@ -155,8 +89,8 @@ public final class Icons {
     return group;
   }
 
-  /** A robot's head, for a bot that follows rules: a square head with two eyes and a mouth, and an antenna. */
-  public static Node robot(double size, Paint color) {
+  /** A robot's head, drawn as shapes (a bot used to have it, and {@link #BOT} is used now): a square head with two eyes and a mouth, and an antenna. */
+  public static Node robotDrawn(double size, Paint color) {
     var head = new Rectangle(size * 0.12, size * 0.3, size * 0.76, size * 0.62);
     head.setArcWidth(size * 0.16);
     head.setArcHeight(size * 0.16);
@@ -176,33 +110,6 @@ public final class Icons {
     var tip = new Circle(size * 0.5, size * 0.08, size * 0.07);
     tip.setFill(color);
     return new Group(head, leftEye, rightEye, mouth, antenna, tip);
-  }
-
-  /** A circle with a slash through it, for a seat that is not taken. */
-  public static Node off(double size, Paint color) {
-    var ring = new Circle(size * 0.5, size * 0.5, size * 0.42);
-    ring.setFill(null);
-    ring.setStroke(color);
-    ring.setStrokeWidth(size * 0.09);
-    var slash = new Line(size * 0.2, size * 0.8, size * 0.8, size * 0.2);
-    slash.setStroke(color);
-    slash.setStrokeWidth(size * 0.09);
-    return new Group(ring, slash);
-  }
-
-  /**
-   * The icon of what controls a player: a person for a human, a network for the AI, a robot for a bot that follows rules,
-   * and a crossed circle for no player, which is null.
-   */
-  public static Node forKind(PlayerKind kind, double size, Paint color) {
-    if (kind == null) {
-      return off(size, color);
-    }
-    return switch (kind) {
-      case HUMAN -> person(size, color);
-      case AI -> network(size, color);
-      default -> robot(size, color);
-    };
   }
 
   /** Default color for an icon on a light background. */

@@ -26,6 +26,7 @@
       <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
       <quarkus.version>3.28.0</quarkus.version>
       <javafx.version>24.0.2</javafx.version>
+      <ikonli.version>12.3.1</ikonli.version>
       <!-- <javafx.version>26-ea+7</javafx.version> -->
     </properties>
 
@@ -79,6 +80,16 @@
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-controls</artifactId>
                 <version>${javafx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.kordamp.ikonli</groupId>
+                <artifactId>ikonli-javafx</artifactId>
+                <version>${ikonli.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.kordamp.ikonli</groupId>
+                <artifactId>ikonli-materialdesign2-pack</artifactId>
+                <version>${ikonli.version}</version>
             </dependency>
             <dependency>
                 <groupId>no.hal</groupId>

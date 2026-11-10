@@ -58,11 +58,13 @@
                     <!--
                       The files that are read from the class path, which a native image only has if they are listed. The patterns are
                       written into a json file as they are, so they must not have a backslash, which is not allowed in it: [.] is a dot.
+                      The ttf is the file of the icon font (Ikonli), which is found on the class path when it is first used.
                     -->
                     <resourcesList>
                         <list>.*[.]json$</list>
                         <list>.*[.]weights$</list>
                         <list>.*[.]css$</list>
+                        <list>.*[.]ttf$</list>
                     </resourcesList>
                     <appIdentifier>no.hal.riskfx</appIdentifier>
                     <!--

@@ -423,13 +423,14 @@ public class PlayApp extends Application {
       }
     });
     stopButton = new Button();
-    stopButton.setGraphic(Icons.stop(12, Icons.DARK));
+    stopButton.setGraphic(Icons.of(Icons.STOP, 16, Icons.DARK));
     stopButton.setTooltip(new Tooltip("Stop the game"));
     stopButton.setOnAction(_ -> confirmStop());
     mapButton = new Button();
     mapButton.setOnAction(_ -> showMapPopup());
     updateMapButton();
-    var helpButton = new Button("?");
+    var helpButton = new Button();
+    helpButton.setGraphic(Icons.of(Icons.HELP, 18, Icons.DARK));
     helpButton.setTooltip(new Tooltip("Help"));
     var helpPopup = popupWith(new Label(HELP), 300);
     helpButton.setOnAction(_ -> togglePopup(helpPopup, helpButton, 300));
@@ -468,15 +469,15 @@ public class PlayApp extends Application {
     boolean idle = idle();
     if (idle) {
       playButton.setText("Play");
-      playButton.setGraphic(Icons.play(12, Icons.DARK));
+      playButton.setGraphic(Icons.of(Icons.PLAY, 16, Icons.DARK));
       playButton.setTooltip(new Tooltip("Start a game with the players that are set"));
     } else if (playing) {
       playButton.setText("Pause");
-      playButton.setGraphic(Icons.pause(12, Icons.DARK));
+      playButton.setGraphic(Icons.of(Icons.PAUSE, 16, Icons.DARK));
       playButton.setTooltip(new Tooltip("Pause the bots"));
     } else {
       playButton.setText("Resume");
-      playButton.setGraphic(Icons.play(12, Icons.DARK));
+      playButton.setGraphic(Icons.of(Icons.PLAY, 16, Icons.DARK));
       playButton.setTooltip(new Tooltip("Let the bots go on"));
     }
     // a game needs two players, so it can only be started when two seats are taken
@@ -624,7 +625,7 @@ public class PlayApp extends Application {
    */
   private Button createSettingsButton() {
     var button = new Button();
-    button.setGraphic(Icons.gear(16, Icons.DARK));
+    button.setGraphic(Icons.of(Icons.SETTINGS, 18, Icons.DARK));
     button.setTooltip(new Tooltip("Settings"));
     var note = new Label("Read when a new game starts.");
     note.setStyle("-fx-text-fill: gray;");
@@ -676,7 +677,7 @@ public class PlayApp extends Application {
     boolean left = index == 0 || index == 1;
     // the button ends the attack or skips the fortification, so it is only there in those phases, for a human
     var skip = new Button();
-    skip.setGraphic(Icons.skip(16, Color.WHITE));
+    skip.setGraphic(Icons.of(Icons.SKIP, 20, Color.WHITE));
     skip.setStyle("-fx-background-color: rgba(30, 30, 30, 0.85); -fx-background-radius: 20; -fx-min-width: 44; -fx-min-height: 44; "
         + "-fx-max-width: 44; -fx-max-height: 44;");
     skip.setVisible(false);
