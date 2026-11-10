@@ -112,7 +112,6 @@ public class PlayApp extends Application {
   private Label statusLabel;
   private Button playButton;
   private Button stopButton;
-  private Button stepButton;
   private Slider speedSlider;
   private PauseTransition timer;
   // the players, in the corners of the map as if they were around a table, and what to do now at the bottom
@@ -402,7 +401,7 @@ public class PlayApp extends Application {
   }
 
   /**
-   * The slim bar: play, which starts a game and then pauses it and resumes it, stop, step, what is happening, the speed of the bots,
+   * The slim bar: play, which starts a game and then pauses it and resumes it, stop, what is happening, the speed of the bots,
    * the map to play on, help and settings.
    */
   private Parent createBar() {
@@ -427,8 +426,6 @@ public class PlayApp extends Application {
     stopButton.setGraphic(Icons.stop(12, Icons.DARK));
     stopButton.setTooltip(new Tooltip("Stop the game"));
     stopButton.setOnAction(_ -> confirmStop());
-    stepButton = new Button("Step");
-    stepButton.setOnAction(_ -> botMove());
     mapButton = new Button();
     mapButton.setOnAction(_ -> showMapPopup());
     updateMapButton();
@@ -436,7 +433,7 @@ public class PlayApp extends Application {
     helpButton.setTooltip(new Tooltip("Help"));
     var helpPopup = popupWith(new Label(HELP), 300);
     helpButton.setOnAction(_ -> togglePopup(helpPopup, helpButton, 300));
-    var bar = new HBox(8, playButton, stopButton, stepButton, statusLabel, spacer, speedSlider, mapButton, helpButton, createSettingsButton());
+    var bar = new HBox(8, playButton, stopButton, statusLabel, spacer, speedSlider, mapButton, helpButton, createSettingsButton());
     bar.setAlignment(Pos.CENTER_LEFT);
     bar.setPadding(new Insets(4, 8, 4, 8));
     updateTransport();
@@ -451,7 +448,7 @@ public class PlayApp extends Application {
     return match == null || match.isDone() || stopped;
   }
 
-  /** Lets the bots play on, or pauses them. A paused game can be stepped through, and a human can still make their own moves. */
+  /** Lets the bots play on, or pauses them. A human can still make their own moves in a paused game. */
   private void setPlaying(boolean play) {
     playing = play;
     if (play) {
@@ -485,7 +482,6 @@ public class PlayApp extends Application {
     // a game needs two players, so it can only be started when two seats are taken
     playButton.setDisable(idle && takenSeats() < GameSetup.MIN_PLAYERS);
     stopButton.setDisable(idle);
-    stepButton.setDisable(idle || playing || (match != null && match.isHumanTurn()));
     mapButton.setDisable(! idle);
     if (betweenGamesHint != null) {
       betweenGamesHint.setVisible(idle);
