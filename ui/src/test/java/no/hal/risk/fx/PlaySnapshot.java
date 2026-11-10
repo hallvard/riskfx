@@ -158,8 +158,8 @@ public class PlaySnapshot {
     app.worldView().setEditLabels(true);
     snapshot("8-europe-editing-labels");
     app.worldView().setEditLabels(false);
-    app.setSetupMode(true);
-    snapshot("10-new-game-card");
+    app.stopGame();
+    snapshot("10-between-games");
     // the icons of what controls a player, large
     var icons = new javafx.scene.layout.HBox(24);
     icons.setStyle("-fx-background-color: #f4f4f4; -fx-padding: 16;");
@@ -183,7 +183,6 @@ public class PlaySnapshot {
     // what is shown if the window could not be made
     scene.setRoot(app.failureContent(new IllegalStateException("The map could not be read", new java.io.UncheckedIOException(new java.io.FileNotFoundException("/maps/europe/continents.json")))));
     snapshot("11-failure");
-    app.setSetupMode(false);
     // the pie menus, which are in windows of their own, so they are rendered on their own
     pie("9-pie-attack", List.of(
         new NumberMenuController.Choice("End attack", () -> {}),

@@ -36,6 +36,17 @@ public class BotMatch {
     return bots;
   }
 
+  /**
+   * Gives a player another bot, which takes over from the next action, wherever in a turn the game is. The bots remember nothing between
+   * actions, since each decides from the board, so nothing is lost. Replacing a human with a bot makes the next action the bot's,
+   * and the other way round, the human's to choose.
+   */
+  public void replaceBot(Player player, Bot bot) {
+    var replaced = new java.util.ArrayList<>(bots);
+    replaced.set(env.playerIndex(player), bot);
+    bots = List.copyOf(replaced);
+  }
+
   public Bot bot(Player player) {
     return bots.get(env.playerIndex(player));
   }

@@ -66,6 +66,29 @@ public final class Icons {
     return new Group(triangle, bar);
   }
 
+  /** Play: a triangle pointing right. */
+  public static Node play(double size, Paint color) {
+    var triangle = new Polygon(size * 0.1, 0, size * 0.95, size / 2, size * 0.1, size);
+    triangle.setFill(color);
+    return new Group(triangle);
+  }
+
+  /** Pause: two bars. */
+  public static Node pause(double size, Paint color) {
+    var left = new Rectangle(size * 0.12, 0, size * 0.28, size);
+    var right = new Rectangle(size * 0.6, 0, size * 0.28, size);
+    left.setFill(color);
+    right.setFill(color);
+    return new Group(left, right);
+  }
+
+  /** Stop: a square. */
+  public static Node stop(double size, Paint color) {
+    var square = new Rectangle(size * 0.05, size * 0.05, size * 0.9, size * 0.9);
+    square.setFill(color);
+    return new Group(square);
+  }
+
   /** A check mark, for accepting. */
   public static Node check(double size, Paint color) {
     var mark = new Polyline(0, size * 0.55, size * 0.38, size * 0.95, size, size * 0.05);

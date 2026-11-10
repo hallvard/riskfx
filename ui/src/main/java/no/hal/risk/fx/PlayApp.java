@@ -101,13 +101,17 @@ public class PlayApp extends Application {
   // setting up a new game, on the table: the kind of each seat (null if it is empty), the map, and the buttons in the middle
   private final PlayerKind[] seatKinds = {PlayerKind.HUMAN, PlayerKind.AI, null, null};
   private GameMap chosenMap = GameMap.CLASSIC;
-  private boolean setupMode;
-  private Pane setupLayer;
-  private Button startButton;
-  private final List<ToggleButton> mapButtons = new ArrayList<>();
+  /** Whether the game that was started has been stopped, which is like it being over: nothing more is played, and a new one can be set up. */
+  private boolean stopped;
+  /** Whether the bots play on by themselves, or are paused. */
+  private boolean playing = true;
+  private Label betweenGamesHint;
+  private Button mapButton;
+  private java.net.URL stylesheet;
   // the bar at the top
   private Label statusLabel;
-  private ToggleButton playButton;
+  private Button playButton;
+  private Button stopButton;
   private Button stepButton;
   private Slider speedSlider;
   private PauseTransition timer;
@@ -121,7 +125,8 @@ public class PlayApp extends Application {
   private static final String HELP = "Tap a territory to do the usual thing: place all the armies, attack, or move as many armies as possible. "
       + "Hold on it to choose how many armies instead, in a menu. "
       + "The button next to the hint ends the attack, or skips the fortification, and so does the Enter key.\n\n"
-      + "New game shows the four seats: tap one to choose who plays it, or to leave it empty, and choose the map in the middle.\n\n"
+      + "Play starts a game, and then pauses it and resumes it. Stop ends the game. Between games, tap a player to choose who plays it, or to "
+      + "turn it off, and the map button to choose the map. During a game, tap a player to swap who plays it.\n\n"
       + "On the map, zoom with Ctrl or Cmd and scroll, and move it with scroll or by dragging with the right button. Press 0 to fit it.";
 
   private RiskEnv env() {
@@ -251,7 +256,7 @@ public class PlayApp extends Application {
     createControls();
     var root = new BorderPane();
     // the stylesheet, which is also a resource of the application that must be in the native build: a missing one is only a plainer look
-    var stylesheet = PlayApp.class.getResource("/riskfx.css");
+    stylesheet = PlayApp.class.getResource("/riskfx.css");
     if (stylesheet != null) {
       root.getStylesheets().add(stylesheet.toExternalForm());
     }
@@ -287,12 +292,23 @@ public class PlayApp extends Application {
     }
     // the map can't be moved out of sight: it must stay in relation to the rectangle that the players never cover
     mapViewport.setSafeArea(() -> safeArea(table));
-    setupLayer = createSetupLayer();
-    table.getChildren().add(setupLayer);
-    AnchorPane.setTopAnchor(setupLayer, 0.0);
-    AnchorPane.setBottomAnchor(setupLayer, 0.0);
-    AnchorPane.setLeftAnchor(setupLayer, 0.0);
-    AnchorPane.setRightAnchor(setupLayer, 0.0);
+    // what to do between games, which is shown only then
+    betweenGamesHint = new Label("Tap a player to change who plays, or the map button above to change the map. Then press Play.");
+    betweenGamesHint.setWrapText(true);
+    betweenGamesHint.setMaxWidth(340);
+    betweenGamesHint.setMinHeight(Region.USE_PREF_SIZE);
+    betweenGamesHint.setTextAlignment(TextAlignment.CENTER);
+    betweenGamesHint.setStyle("-fx-background-color: rgba(30, 30, 30, 0.85); -fx-text-fill: white; -fx-font-size: 15; -fx-font-weight: bold; "
+        + "-fx-padding: 6 14 6 14; -fx-background-radius: 12;");
+    var hintRow = new HBox(betweenGamesHint);
+    hintRow.setAlignment(Pos.TOP_CENTER);
+    hintRow.setMouseTransparent(true);
+    hintRow.setPickOnBounds(false);
+    table.getChildren().add(hintRow);
+    // below the players in the corners at the top
+    AnchorPane.setTopAnchor(hintRow, 58.0);
+    AnchorPane.setLeftAnchor(hintRow, 8.0);
+    AnchorPane.setRightAnchor(hintRow, 8.0);
     root.setCenter(table);
 
     // Enter ends the attack or skips the fortification, which is also in the menus, and 0 fits the map to the window again
@@ -302,7 +318,7 @@ public class PlayApp extends Application {
         event.consume();
         return;
       }
-      if (event.getCode() == KeyCode.ENTER && ! setupMode && endPhase()) {
+      if (event.getCode() == KeyCode.ENTER && ! idle() && endPhase()) {
         event.consume();
       }
     });
@@ -385,10 +401,11 @@ public class PlayApp extends Application {
     speedSlider.setTooltip(new Tooltip("Speed of the bots"));
   }
 
-  /** The slim bar: new game, what is happening, the speed of the bots and play, pause and step, help and settings. */
+  /**
+   * The slim bar: play, which starts a game and then pauses it and resumes it, stop, step, what is happening, the speed of the bots,
+   * the map to play on, help and settings.
+   */
   private Parent createBar() {
-    var newGameButton = new Button("New game");
-    newGameButton.setOnAction(_ -> setSetupMode(! setupMode));
     statusLabel = new Label();
     statusLabel.setStyle("-fx-font-size: 13; -fx-font-weight: bold");
     statusLabel.setMinWidth(0);
@@ -396,27 +413,178 @@ public class PlayApp extends Application {
     var spacer = new Region();
     HBox.setHgrow(spacer, Priority.ALWAYS);
     HBox.setHgrow(statusLabel, Priority.SOMETIMES);
-    playButton = new ToggleButton("Pause");
-    playButton.setSelected(true);
-    playButton.selectedProperty().subscribe(playing -> {
-      playButton.setText(playing ? "Pause" : "Play");
-      if (playing) {
-        scheduleBotMove();
+    // starts a game when there isn't one, and otherwise pauses the bots and resumes them
+    playButton = new Button();
+    playButton.setMinWidth(92);
+    playButton.setOnAction(_ -> {
+      if (idle()) {
+        startNewGame();
       } else {
-        timer.stop();
+        setPlaying(! playing);
       }
-      updateControls();
     });
+    stopButton = new Button();
+    stopButton.setGraphic(Icons.stop(12, Icons.DARK));
+    stopButton.setTooltip(new Tooltip("Stop the game"));
+    stopButton.setOnAction(_ -> confirmStop());
     stepButton = new Button("Step");
     stepButton.setOnAction(_ -> botMove());
+    mapButton = new Button();
+    mapButton.setOnAction(_ -> showMapPopup());
+    updateMapButton();
     var helpButton = new Button("?");
     helpButton.setTooltip(new Tooltip("Help"));
     var helpPopup = popupWith(new Label(HELP), 300);
     helpButton.setOnAction(_ -> togglePopup(helpPopup, helpButton, 300));
-    var bar = new HBox(8, newGameButton, statusLabel, spacer, speedSlider, playButton, stepButton, helpButton, createSettingsButton());
+    var bar = new HBox(8, playButton, stopButton, stepButton, statusLabel, spacer, speedSlider, mapButton, helpButton, createSettingsButton());
     bar.setAlignment(Pos.CENTER_LEFT);
     bar.setPadding(new Insets(4, 8, 4, 8));
+    updateTransport();
     return bar;
+  }
+
+  /**
+   * No game is going: none has been started, or the one that was started is over or stopped. Then the players and the map can be set,
+   * and Play starts a new game.
+   */
+  private boolean idle() {
+    return match == null || match.isDone() || stopped;
+  }
+
+  /** Lets the bots play on, or pauses them. A paused game can be stepped through, and a human can still make their own moves. */
+  private void setPlaying(boolean play) {
+    playing = play;
+    if (play) {
+      scheduleBotMove();
+    } else {
+      timer.stop();
+    }
+    updateTransport();
+    updateControls();
+  }
+
+  /** Play, pause or resume, depending on the game, and what is possible: only with players, only the map between games. */
+  private void updateTransport() {
+    if (playButton == null) {
+      return;
+    }
+    boolean idle = idle();
+    if (idle) {
+      playButton.setText("Play");
+      playButton.setGraphic(Icons.play(12, Icons.DARK));
+      playButton.setTooltip(new Tooltip("Start a game with the players that are set"));
+    } else if (playing) {
+      playButton.setText("Pause");
+      playButton.setGraphic(Icons.pause(12, Icons.DARK));
+      playButton.setTooltip(new Tooltip("Pause the bots"));
+    } else {
+      playButton.setText("Resume");
+      playButton.setGraphic(Icons.play(12, Icons.DARK));
+      playButton.setTooltip(new Tooltip("Let the bots go on"));
+    }
+    // a game needs two players, so it can only be started when two seats are taken
+    playButton.setDisable(idle && takenSeats() < GameSetup.MIN_PLAYERS);
+    stopButton.setDisable(idle);
+    stepButton.setDisable(idle || playing || (match != null && match.isHumanTurn()));
+    mapButton.setDisable(! idle);
+    if (betweenGamesHint != null) {
+      betweenGamesHint.setVisible(idle);
+      betweenGamesHint.setManaged(idle);
+    }
+  }
+
+  private int takenSeats() {
+    return (int) java.util.Arrays.stream(seatKinds).filter(java.util.Objects::nonNull).count();
+  }
+
+  /** Stops the game that is going, after asking, since it can't be taken back. */
+  private void confirmStop() {
+    if (idle()) {
+      return;
+    }
+    var end = new Button("End the game");
+    var keep = new Button("Keep playing");
+    for (var button : new Button[] {end, keep}) {
+      button.setMinHeight(40);
+    }
+    var question = new VBox(10, new Label("End this game?"), new HBox(8, end, keep));
+    question.setPadding(new Insets(12));
+    question.setStyle("-fx-background-color: -fx-background; -fx-border-color: gray; -fx-background-radius: 4; -fx-border-radius: 4;");
+    var popup = new Popup();
+    popup.setAutoHide(true);
+    popup.getContent().add(question);
+    end.setOnAction(_ -> {
+      popup.hide();
+      stopGame();
+    });
+    keep.setOnAction(_ -> popup.hide());
+    togglePopup(popup, stopButton, 0);
+  }
+
+  /** Stops the game that is going: it stays as it is on the table, and a new one can be set up and started. */
+  void stopGame() {
+    if (idle()) {
+      return;
+    }
+    stopped = true;
+    timer.stop();
+    numberMenu.hide();
+    humanTurn.clearSelection();
+    hint = "";
+    render();
+  }
+
+  /** The map button in the bar: a picture of the chosen map, and its name when it is asked. */
+  private void updateMapButton() {
+    try {
+      mapButton.setGraphic(MapThumbnail.of(chosenMap, 36, 24));
+    } catch (RuntimeException | LinkageError e) {
+      // without a picture it has the name
+      e.printStackTrace();
+      mapButton.setText(chosenMap.name());
+    }
+    mapButton.setTooltip(new Tooltip("Map: " + chosenMap.name()));
+  }
+
+  /** A popup of the maps, with a picture of each and its name, to choose where the next game is played. */
+  private void showMapPopup() {
+    var popup = new Popup();
+    popup.setAutoHide(true);
+    var group = new ToggleGroup();
+    var maps = new HBox(8);
+    maps.setPadding(new Insets(10));
+    maps.setStyle("-fx-background-color: -fx-background; -fx-border-color: gray; -fx-background-radius: 6; -fx-border-radius: 6;");
+    // the popup is a window of its own, which doesn't have the stylesheet of the application
+    if (stylesheet != null) {
+      maps.getStylesheets().add(stylesheet.toExternalForm());
+    }
+    for (var map : GameMap.all()) {
+      var choice = new ToggleButton(map.name());
+      choice.getStyleClass().add("map-button");
+      try {
+        choice.setGraphic(MapThumbnail.of(map, 110, 72));
+        choice.setContentDisplay(javafx.scene.control.ContentDisplay.TOP);
+      } catch (RuntimeException | LinkageError e) {
+        e.printStackTrace();
+      }
+      choice.setToggleGroup(group);
+      choice.setSelected(map == chosenMap);
+      choice.setMinWidth(130);
+      choice.setOnAction(_ -> {
+        chosenMap = map;
+        updateMapButton();
+        popup.hide();
+      });
+      maps.getChildren().add(choice);
+    }
+    // one map is always chosen
+    group.selectedToggleProperty().addListener((_, old, now) -> {
+      if (now == null && old != null) {
+        old.setSelected(true);
+      }
+    });
+    popup.getContent().add(maps);
+    togglePopup(popup, mapButton, 0);
   }
 
   /** A popup with the content, in a frame, which closes when clicking outside it. */
@@ -522,11 +690,10 @@ public class PlayApp extends Application {
     var row = left ? new HBox(8, box, hint, skip) : new HBox(8, hint, skip, box);
     // the card and the hint are centered on each other, and the map under them gets the taps, but the button gets its own
     row.setAlignment(left ? Pos.CENTER_LEFT : Pos.CENTER_RIGHT);
-    // the card lets taps through to the map, except when setting up a game, when a tap on it is to choose who plays that seat
-    box.setMouseTransparent(true);
+    // a tap on the card is to choose who plays that seat: between games, to set up the next, and in the game, to swap a player
     box.setOnMouseClicked(_ -> {
-      if (setupMode) {
-        showKindPopup(index);
+      if (match != null && ! worldView.isEditingLabels()) {
+        showKindPopup(index, ! idle());
       }
     });
     hint.setMouseTransparent(true);
@@ -601,141 +768,35 @@ public class PlayApp extends Application {
 
   // setup
 
-  /** What is over the table when setting up a game: an explanation, the choice of map, and buttons for starting the game and for cancelling. */
-  private Pane createSetupLayer() {
-    var group = new ToggleGroup();
-    var maps = new HBox(8);
-    maps.setAlignment(Pos.CENTER);
-    for (var map : GameMap.all()) {
-      var mapButton = new ToggleButton(map.name());
-      mapButton.getStyleClass().add("map-button");
-      mapButton.setToggleGroup(group);
-      mapButton.setUserData(map);
-      mapButton.setMinWidth(130);
-      mapButton.setOnAction(_ -> chosenMap = map);
-      mapButtons.add(mapButton);
-      maps.getChildren().add(mapButton);
-    }
-    // one map is always chosen
-    group.selectedToggleProperty().addListener((_, old, now) -> {
-      if (now == null && old != null) {
-        old.setSelected(true);
-      }
-    });
-    startButton = new Button();
-    startButton.setGraphic(Icons.check(18, Color.WHITE));
-    startButton.setStyle("-fx-background-color: #2e7d32; -fx-background-radius: 22; -fx-min-width: 56; -fx-min-height: 44;");
-    startButton.setTooltip(new Tooltip("Start the game"));
-    startButton.setOnAction(_ -> {
-      startNewGame();
-      setSetupMode(false);
-    });
-    var cancelButton = new Button();
-    cancelButton.setGraphic(Icons.cross(16, Color.WHITE));
-    cancelButton.setStyle("-fx-background-color: #b71c1c; -fx-background-radius: 22; -fx-min-width: 56; -fx-min-height: 44;");
-    cancelButton.setTooltip(new Tooltip("Keep the game that is going"));
-    cancelButton.setOnAction(_ -> {
-      showSetup(setup);
-      setSetupMode(false);
-    });
-    var buttons = new HBox(16, startButton, cancelButton);
-    buttons.setAlignment(Pos.CENTER);
-    // no frame around any of it, so it doesn't look like a dialog: the explanation is a pill like the hint at the top, below the seats there,
-    // the map choice is in the middle, and the buttons are at the bottom, above the seats there
-    var explanation = new Label("Tap a corner to choose who plays");
-    explanation.setWrapText(true);
-    explanation.setMaxWidth(320);
-    // a wrapped label otherwise gets the height of one line from a layout that doesn't know the width, and cuts the text off
-    explanation.setMinHeight(Region.USE_PREF_SIZE);
-    explanation.setTextAlignment(TextAlignment.CENTER);
-    explanation.setStyle("-fx-background-color: rgba(30, 30, 30, 0.85); -fx-text-fill: white; -fx-font-size: 15; -fx-font-weight: bold; "
-        + "-fx-padding: 6 14 6 14; -fx-background-radius: 12;");
-    explanation.setMouseTransparent(true);
-    var layer = new BorderPane();
-    layer.setTop(explanation);
-    BorderPane.setAlignment(explanation, Pos.TOP_CENTER);
-    BorderPane.setMargin(explanation, new Insets(58, 8, 0, 8));
-    layer.setCenter(maps);
-    layer.setBottom(buttons);
-    BorderPane.setAlignment(buttons, Pos.BOTTOM_CENTER);
-    BorderPane.setMargin(buttons, new Insets(0, 0, 58, 0));
-    layer.setPickOnBounds(false);
-    layer.setVisible(false);
-    return layer;
-  }
-
-  /**
-   * Switches to setting up a new game on the table, where the seats show who plays them, and can be tapped to change that, or back
-   * to the game. The game that is going on is not changed until a new one is started, and the bots wait.
-   */
-  void setSetupMode(boolean on) {
-    if (setupMode == on) {
-      return;
-    }
-    setupMode = on;
-    setupLayer.setVisible(on);
-    for (int i = 0; i < seats.size(); i++) {
-      seats.get(i).box().setMouseTransparent(! on);
-    }
-    if (on) {
-      timer.stop();
-      addMapThumbnails();
-      mapButtons.forEach(mapButton -> mapButton.setSelected(mapButton.getUserData() == chosenMap));
-      numberMenu.hide();
-    } else {
-      scheduleBotMove();
-    }
-    updateSetupControls();
-    if (match != null) {
-      render();
-    }
-  }
-
-  private boolean thumbnailsAdded;
-
-  /**
-   * Puts a picture of the map above its name on the buttons for choosing a map. It is done when they are first shown, not when the window is
-   * made, since it reads the data of every map, and a failure in that is then only a missing picture, and not a window that can't start.
-   */
-  private void addMapThumbnails() {
-    if (thumbnailsAdded) {
-      return;
-    }
-    thumbnailsAdded = true;
-    for (var mapButton : mapButtons) {
-      try {
-        mapButton.setGraphic(MapThumbnail.of((GameMap) mapButton.getUserData(), 110, 72));
-        mapButton.setContentDisplay(javafx.scene.control.ContentDisplay.TOP);
-      } catch (RuntimeException | LinkageError e) {
-        e.printStackTrace();
-      }
-    }
-  }
-
-  private int takenSeats() {
-    return (int) java.util.Arrays.stream(seatKinds).filter(java.util.Objects::nonNull).count();
-  }
-
-  /** A game needs two players, so it can only be started when two seats are taken. */
-  private void updateSetupControls() {
-    startButton.setDisable(takenSeats() < GameSetup.MIN_PLAYERS);
-  }
-
   /**
    * A popup of the choices for a seat, in two columns of large buttons next to the card of the seat: who plays it, or that it is empty.
    * The default of the seat comes first, since that is the usual choice. It is not a list, which scrolls when there is not room for it,
    * and on a touch screen a tap that moves a little is then a scroll and not a choice.
    */
-  private void showKindPopup(int seat) {
+  private void showKindPopup(int seat, boolean inGame) {
     var kinds = new ArrayList<>(List.of(PlayerKind.values()));
     var seatDefault = GameSetup.SEAT_DEFAULTS.get(seat);
     kinds.remove(seatDefault);
     kinds.addFirst(seatDefault);
     var options = new ArrayList<PlayerKind>(kinds);
-    // an empty seat is null
-    options.add(null);
+    // an empty seat is null, which is only between games, since a player can't leave a game that is going
+    if (! inGame) {
+      options.add(null);
+    }
     var popup = new Popup();
     popup.setAutoHide(true);
+    if (inGame) {
+      // the bots are stopped while choosing, and go on when it is done, or the popup is closed without choosing, unless they were stopped
+      boolean botsPlaying = playing && ! match.isHumanTurn();
+      if (botsPlaying) {
+        setPlaying(false);
+      }
+      popup.setOnHidden(_ -> {
+        if (botsPlaying) {
+          setPlaying(true);
+        }
+      });
+    }
     var grid = new GridPane();
     grid.setHgap(8);
     grid.setVgap(8);
@@ -752,10 +813,14 @@ public class PlayApp extends Application {
         choice.setStyle("-fx-font-weight: bold; -fx-border-color: #333333; -fx-border-width: 2;");
       }
       choice.setOnAction(_ -> {
-        seatKinds[seat] = kind;
+        if (inGame) {
+          changePlayer(seat, kind);
+        } else {
+          seatKinds[seat] = kind;
+          updateTransport();
+          updateStatus();
+        }
         popup.hide();
-        updateSetupControls();
-        updateStatus();
       });
       grid.add(choice, i % 2, i / 2);
     }
@@ -773,12 +838,37 @@ public class PlayApp extends Application {
         Math.max(visible.getMinY(), Math.min(y, visible.getMaxY() - size[1])));
   }
 
+  /**
+   * Gives the player in a seat another kind in the game that is going on, which takes over from the next action: a bot is swapped for
+   * another, or for a human, or a human for a bot, wherever in a turn the game is.
+   */
+  private void changePlayer(int seat, PlayerKind kind) {
+    int player = setup.playerOfSeat(seat);
+    if (match == null || player < 0 || kind == null || kind == setup.kinds().get(player)) {
+      return;
+    }
+    try {
+      match.replaceBot(env().players().get(player), createBot(kind, setup.playerCount(), currentMap));
+    } catch (IOException e) {
+      hint = "Could not change the player: " + e.getMessage();
+      render();
+      return;
+    }
+    var kinds = new ArrayList<>(setup.kinds());
+    kinds.set(player, kind);
+    setup = new GameSetup(kinds, setup.seats());
+    showSetup(setup);
+    // what a human had selected is not the new player's
+    humanTurn.clearSelection();
+    hint = "";
+    render();
+    scheduleBotMove();
+  }
+
   /** Shows a setup in the seats: the kind of each. */
   private void showSetup(GameSetup shown) {
     System.arraycopy(shown.seatKinds(), 0, seatKinds, 0, seatKinds.length);
-    if (startButton != null) {
-      updateSetupControls();
-    }
+    updateTransport();
   }
 
   /** The setup as chosen in the seats. */
@@ -801,29 +891,33 @@ public class PlayApp extends Application {
     startGame(newSetup, fortifyMode, rules, GameMap.CLASSIC, seed);
   }
 
+  /** The bot that is what the kind says, in a game of this number of players on the map. */
+  private Bot createBot(PlayerKind kind, int playerCount, GameMap map) throws IOException {
+    return switch (kind) {
+      case HUMAN -> new HumanBot();
+      // the rule-based bots are by name
+      case GREEDY, CAUTIOUS, DENIER, ERRATIC -> Bots.byName(kind.botName());
+      case AI -> aiNetworks.botFor(playerCount, map);
+    };
+  }
+
   void startGame(GameSetup newSetup, FortifyMode fortifyMode, Rules rules, GameMap map, long seed) {
     timer.stop();
     // a new map has its own labels, so editing the labels of the last one ends, with the question whether to save
     editLabelsBox.setSelected(false);
     currentMap = map;
     chosenMap = map;
+    updateMapButton();
     editLabelsBox.setDisable(map.labelOffsetsFile() == null);
     var bots = new ArrayList<Bot>();
     for (var kind : newSetup.kinds()) {
-      switch (kind) {
-        case HUMAN -> bots.add(new HumanBot());
-        // the rule-based bots are by name
-        case GREEDY, CAUTIOUS, DENIER, ERRATIC -> bots.add(Bots.byName(kind.botName()));
-        case AI -> {
-          try {
-            bots.add(aiNetworks.botFor(newSetup.playerCount(), map));
-          } catch (IOException e) {
-            statusLabel.setText("No AI network for %d players: could not read %s (%s)".formatted(
-                newSetup.playerCount(), aiNetworks.describe(newSetup.playerCount()), e.getMessage()));
-            scheduleBotMove();
-            return;
-          }
-        }
+      try {
+        bots.add(createBot(kind, newSetup.playerCount(), map));
+      } catch (IOException e) {
+        statusLabel.setText("No AI network for %d players: could not read %s (%s)".formatted(
+            newSetup.playerCount(), aiNetworks.describe(newSetup.playerCount()), e.getMessage()));
+        scheduleBotMove();
+        return;
       }
     }
     setup = newSetup;
@@ -850,7 +944,8 @@ public class PlayApp extends Application {
       }
     });
     match.reset(seed, bots);
-    playButton.setSelected(true);
+    stopped = false;
+    setPlaying(true);
     render();
     scheduleBotMove();
   }
@@ -859,7 +954,8 @@ public class PlayApp extends Application {
 
   /** The mouse button was released on a territory: a short press does the default action, and a long press shows a menu of the variants. */
   void territoryReleased(WorldView.TerritoryRelease release) {
-    if (setupMode) {
+    // between games, the board is as it was left, and can't be played on
+    if (idle()) {
       return;
     }
     if (release.held()) {
@@ -1070,7 +1166,7 @@ public class PlayApp extends Application {
   }
 
   void botMove() {
-    if (match == null || match.isDone() || match.isHumanTurn()) {
+    if (match == null || match.isDone() || stopped || match.isHumanTurn()) {
       return;
     }
     var move = match.step();
@@ -1084,7 +1180,7 @@ public class PlayApp extends Application {
 
   /** The bots move one at a time, at the chosen speed, as long as it is not paused and no human has to move. */
   private void scheduleBotMove() {
-    if (match == null || ! playButton.isSelected() || match.isDone() || match.isHumanTurn()) {
+    if (match == null || ! playing || stopped || match.isDone() || match.isHumanTurn()) {
       return;
     }
     // from about a second between moves, to as fast as possible
@@ -1103,9 +1199,7 @@ public class PlayApp extends Application {
           outlines.put(territory, selection == HumanTurn.Selection.SOURCE ? Color.BLACK : Color.DARKGRAY));
     }
     outlines.putAll(lastMoveOutlines);
-    // when setting up a new game, the map is quiet: light grey, without the outlines of the game that is going on
-    worldView.setDimmed(setupMode);
-    worldView.setMarkedTerritories(setupMode ? Map.of() : outlines);
+    worldView.setMarkedTerritories(outlines);
     updateStatus();
     updateControls();
   }
@@ -1122,14 +1216,16 @@ public class PlayApp extends Application {
           ? "Draw: the limit of %d turns was reached".formatted(env.maxTurns())
           : "%s won after %d turns".formatted(describe(env.winner()), env.turns()));
     } else {
-      statusLabel.setText("Turn %d · %s · %s".formatted(env.turns() + 1, env.currentPlayer().name(), env.phase().name().toLowerCase()));
+      statusLabel.setText(stopped
+          ? "Stopped after %d turns".formatted(env.turns())
+          : "Turn %d · %s · %s".formatted(env.turns() + 1, env.currentPlayer().name(), env.phase().name().toLowerCase()));
     }
     int toPlace = env.risk().currentTurnState() instanceof TurnState.Reinforcing reinforcing ? reinforcing.totalArmies() : 0;
     for (int i = 0; i < seats.size(); i++) {
       var seat = seats.get(i);
       var color = RiskConfig.playerColor(i);
-      if (setupMode) {
-        // who plays the seat in the game that is being set up, which can be changed by tapping the card
+      if (idle()) {
+        // between games: who plays the seat in the next game, which can be changed by tapping the card
         var kind = seatKinds[i];
         seat.row().setVisible(true);
         seat.title().setText("Player %d · %s".formatted(i + 1, kind == null ? "Off" : kind.label()));
@@ -1179,12 +1275,12 @@ public class PlayApp extends Application {
       return;
     }
     boolean human = match.isHumanTurn();
-    stepButton.setDisable(playButton.isSelected() || match.isDone() || human);
+    updateTransport();
     // what a human can do, and a message about why something didn't work, in the card of the human whose turn it is
     var current = match.isDone() ? null : env().currentPlayer();
     for (int i = 0; i < seats.size(); i++) {
       var seat = seats.get(i);
-      boolean here = human && ! setupMode && current != null && playerOfSeat(i) == current;
+      boolean here = human && ! idle() && current != null && playerOfSeat(i) == current;
       seat.hint().setVisible(here);
       seat.hint().setManaged(here);
       // ending the attack, or skipping the fortification, has no argument, so it is a button, and there is nothing to skip when reinforcing

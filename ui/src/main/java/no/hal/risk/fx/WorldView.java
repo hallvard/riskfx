@@ -669,22 +669,9 @@ public class WorldView {
     updateTerritoryLabel(territory);
   }
 
-  private static final Color DIMMED_FILL = Color.rgb(190, 190, 190);
-  private boolean dimmed;
-
-  /** Whether the territories are all light grey, instead of the colors of their players, so the map is quiet behind something else. */
-  public void setDimmed(boolean dimmed) {
-    if (this.dimmed != dimmed) {
-      this.dimmed = dimmed;
-      if (getWorld() != null && ! territoryNodes.isEmpty()) {
-        getWorld().allTerritories().forEach(this::updateTerritoryPath);
-      }
-    }
-  }
-
   private void updateTerritoryPath(Territory territory) {
     var path = getTerritoryNode(territory, Path.class);
-    Color fillColor = dimmed ? DIMMED_FILL : FxColors.of(territory.occupant().color());
+    Color fillColor = FxColors.of(territory.occupant().color());
     path.setFill(fillColor);
     var markColor = markedTerritories.get(territory);
     path.setStroke(markColor != null ? markColor : Color.BLACK);
