@@ -58,6 +58,7 @@ Mediterranean_Isles-France Mediterranean_Isles-Spain Mediterranean_Isles-Italy
 SIMPLIFY_TOLERANCE = 0.8  # in the units of the svg (about a pixel on the screen at the size of the whole map): points that change the outline less are left out
 TOO_SMALL = 8.0  # the shapes of islands smaller than this are left out, since they are specks on the map
 MARGIN = 10.0
+ICELAND_SHIFT_X = 170.0  # how far east Iceland is moved, in the units of the svg
 HIDE_TURKEY_EAST_OF = 800.0  # of Turkey, only the part next to Europe is shown
 
 
@@ -352,6 +353,8 @@ def territories():
     shapes["Wales"] = [wales_part] + [r for r in islands if 345 < centroid(r)[0] < 358 and 355 < centroid(r)[1] < 372]
     shapes["England"] = [england_part] + [r for r in islands if centroid(r)[1] >= 335 and r not in shapes["Wales"]
                                           and not (centroid(r)[0] < 345 and centroid(r)[1] < 350)]
+    # Iceland is moved east, to be north of Scotland, so it is not west of Ireland and the map is not wider than it needs to be
+    shapes["Iceland"] = [[(x + ICELAND_SHIFT_X, y) for x, y in ring] for ring in shapes["Iceland"]]
     neutral = {}
     for name, code in INACTIVE.items():
         rings = significant(countries[code])
