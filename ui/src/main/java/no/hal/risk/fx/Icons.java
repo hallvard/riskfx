@@ -1,5 +1,8 @@
 package no.hal.risk.fx;
 
+import java.io.ByteArrayInputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
@@ -9,7 +12,6 @@ import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.javafx.IkonResolver;
 
 /**
  * Small icons. Most are glyphs of an icon font (Ikonli, with the Material Design Icons 2 set), which is a file in the application
@@ -38,91 +40,42 @@ public final class Icons {
   public static final String BOT = "mdi2r-robot";
   public static final String OFF = "mdi2b-block-helper";
 
-  private static final String FONT_FAMILY = "Material Design Icons";
   private static final String FONT_FILE = "/META-INF/resources/materialdesignicons2/5.8.55/fonts/materialdesignicons-webfont.ttf";
-  private static final StringBuilder fontReport = new StringBuilder();
-  private static boolean fontChecked;
+  private static boolean fontLoaded;
 
   /**
-   * What happened when the font was loaded, for the help text: icons that are boxes with a cross instead mean that the font didn't load,
-   * as it didn't in the first native app on Android, and this says where it went wrong.
-   */
-  public static String fontReport() {
-    return fontReport.toString();
-  }
-
-  private static void report(String line) {
-    fontReport.append(line).append('\n');
-    System.err.println("Icon font: " + line);
-  }
-
-  /**
-   * Ikonli loads the font from a url, which a native app may not be able to do (it was not there on Android), so it is also loaded here
-   * from a stream before the first icon is made, which registers it by name, which is what an icon says in its style. Both are reported.
+   * Registers the font by name, which is what an icon says in its style, before the first icon is made. Ikonli loads the font itself from a
+   * url, which gives no font in a native app on Android (the icons are boxes with a cross): JavaFX copies the font to a temporary file
+   * first, which fails there, and a stream gives no font either. A file does, so it is tried when a stream
+   * (as on the desktop) gives no font: the font is written to a file in the temporary directory, which is the private directory of the app.
    */
   private static void loadFont() {
-    if (fontChecked) {
+    if (fontLoaded) {
       return;
     }
-    fontChecked = true;
+    fontLoaded = true;
     try {
-      var url = Icons.class.getResource(FONT_FILE);
-      report("font file on the class path: " + (url != null));
-      report("javafx " + System.getProperty("javafx.runtime.version") + ", " + System.getProperty("os.name") + " "
-          + System.getProperty("os.arch") + ", " + System.getProperty("java.vm.name") + ", families: " + Font.getFamilies().size());
       byte[] bytes;
       try (var stream = Icons.class.getResourceAsStream(FONT_FILE)) {
-        bytes = stream != null ? stream.readAllBytes() : new byte[0];
+        bytes = stream.readAllBytes();
       }
-      report("bytes read: " + bytes.length);
-      var font = Font.loadFont(new java.io.ByteArrayInputStream(bytes), 16);
-      report("from a stream: " + describe(font));
-      if (font == null) {
-        // JavaFX copies the font to a temporary file when it is loaded from a stream or a url, and the temporary directory of a phone
-        // may not be one the app can write to: another directory is tried, with the font as a file there, and as the temporary directory
-        for (var property : new String[] {"java.io.tmpdir", "user.home", "user.dir", "java.home"}) {
-          var dir = System.getProperty(property);
-          report(property + ": " + dir);
-          if (dir == null || font != null) {
-            continue;
-          }
-          try {
-            var file = java.nio.file.Files.createTempFile(java.nio.file.Path.of(dir), "icons", ".ttf");
-            java.nio.file.Files.write(file, bytes);
-            font = Font.loadFont(file.toUri().toString(), 16);
-            report("  from a file there: " + describe(font));
-            if (font == null && ! property.equals("java.io.tmpdir")) {
-              System.setProperty("java.io.tmpdir", dir);
-              font = Font.loadFont(new java.io.ByteArrayInputStream(bytes), 16);
-              report("  from a stream, with that as the temporary directory: " + describe(font));
-            }
-          } catch (Exception e) {
-            report("  no file there: " + e.getClass().getSimpleName());
-          }
+      if (Font.loadFont(new ByteArrayInputStream(bytes), 16) == null) {
+        // the file stays, since the font may be read from it later, and is replaced the next time
+        var file = Path.of(System.getProperty("java.io.tmpdir"), "riskfx-icons.ttf");
+        Files.write(file, bytes);
+        if (Font.loadFont(file.toUri().toString(), 16) == null) {
+          System.err.println("The icon font could not be loaded, so the icons are boxes");
         }
       }
-      report("the family is known: " + Font.getFamilies().contains(FONT_FAMILY));
-    } catch (Throwable e) {
-      report("loading failed: " + e);
+    } catch (Exception e) {
+      System.err.println("The icon font could not be loaded, so the icons are boxes: " + e);
     }
-  }
-
-  private static String describe(Font font) {
-    return font != null ? font.getFamily() : "no font";
   }
 
   /** The icon with the name (as the constants are) at the size, which is the height of it in pixels, and in the color. */
   public static Node of(String name, double size, Paint color) {
     loadFont();
     var icon = new FontIcon(name);
-    if (fontReport.indexOf("Ikonli's own load") < 0) {
-      try {
-        var font = IkonResolver.getInstance().resolve(name).getFont();
-        report("Ikonli's own load: " + (font instanceof Font f ? f.getFamily() : "no font"));
-      } catch (Throwable e) {
-        report("Ikonli's own load failed: " + e);
-      }
-    }
     icon.setIconSize((int) Math.round(size));
     icon.setIconColor(color);
     return icon;

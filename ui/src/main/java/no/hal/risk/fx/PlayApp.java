@@ -24,6 +24,8 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.Label;
 import javafx.scene.control.OverrunStyle;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.text.Text;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ToggleButton;
@@ -432,13 +434,8 @@ public class PlayApp extends Application {
     var helpButton = new Button();
     helpButton.setGraphic(Icons.of(Icons.HELP, 18, Icons.DARK));
     helpButton.setTooltip(new Tooltip("Help"));
-    var helpText = new Label(HELP);
-    var helpPopup = popupWith(helpText, 300);
-    helpButton.setOnAction(_ -> {
-      // what happened with the icon font is added to the text, to see why icons are boxes if they are
-      helpText.setText(HELP + "\n\nIcon font:\n" + Icons.fontReport());
-      togglePopup(helpPopup, helpButton, 300);
-    });
+    var helpPopup = popupWith(new Label(HELP), 300);
+    helpButton.setOnAction(_ -> showTextPopup(helpPopup, helpButton, 300));
     var bar = new HBox(8, playButton, stopButton, statusLabel, spacer, speedSlider, mapButton, helpButton, createSettingsButton());
     bar.setAlignment(Pos.CENTER_LEFT);
     bar.setPadding(new Insets(4, 8, 4, 8));
@@ -592,14 +589,40 @@ public class PlayApp extends Application {
   /** A popup with the content, in a frame, which closes when clicking outside it. */
   private static Popup popupWith(Label content, double width) {
     content.setWrapText(true);
+    // a width, to have the height it gets when wrapped there
+    content.setPrefWidth(width);
     content.setMaxWidth(width);
-    var frame = new VBox(content);
+    // the text is in a scroll pane, so that all of it can be reached when it doesn't fit in the window, see showTextPopup
+    var scroll = new ScrollPane(content);
+    scroll.setFitToWidth(true);
+    scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+    scroll.setPrefViewportWidth(width + 14);
+    scroll.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
+    var frame = new VBox(scroll);
     frame.setPadding(new Insets(12));
     frame.setStyle("-fx-background-color: -fx-background; -fx-border-color: gray; -fx-background-radius: 4; -fx-border-radius: 4;");
     var popup = new Popup();
     popup.setAutoHide(true);
     popup.getContent().add(frame);
     return popup;
+  }
+
+  /** Shows (or hides) a popup made by popupWith under a button, with the text no higher than there is room for in the window. */
+  private static void showTextPopup(Popup popup, Button button, double width) {
+    if (! popup.isShowing() && button.getScene() != null) {
+      var frame = (VBox) popup.getContent().getFirst();
+      var scroll = (ScrollPane) frame.getChildren().getFirst();
+      // a scroll pane is 100 high unless told otherwise: it is as high as the text, which is measured as wrapped to the width (a label is a little higher than a text), but not
+      // higher than there is room for, which is where the scroll bar comes from
+      var content = (Label) scroll.getContent();
+      var measure = new Text(content.getText());
+      measure.setFont(content.getFont());
+      measure.setWrappingWidth(width);
+      double room = button.getScene().getHeight() - button.localToScene(button.getBoundsInLocal()).getMaxY() - 4
+          - frame.getPadding().getTop() - frame.getPadding().getBottom() - 8;
+      scroll.setPrefViewportHeight(Math.max(60, Math.min(measure.getLayoutBounds().getHeight() * 1.1 + 6, room)));
+    }
+    togglePopup(popup, button, width);
   }
 
   /** Shows a popup under a button, with their right edges aligned, or hides it if it is showing. */
