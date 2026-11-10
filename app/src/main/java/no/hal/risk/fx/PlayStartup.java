@@ -10,7 +10,8 @@ import org.jboss.logging.Logger;
 /**
  * Shows the window for playing and watching, {@link PlayApp}, when the application has started, e.g. with {@code mvn quarkus:dev}.
  * The trained networks are in the application, and other ones can be used with the
- * configuration properties {@code riskfx.ai2} and {@code riskfx.ai4}, with the files.
+ * configuration properties {@code riskfx.ai2} and {@code riskfx.ai4}, with the files. The settings are kept in the file
+ * {@code ~/.riskfx/settings.properties}, or the one in {@code riskfx.settings}.
  */
 @ApplicationScoped
 public class PlayStartup {
@@ -22,6 +23,8 @@ public class PlayStartup {
     var options = new HashMap<String, String>();
     config.getOptionalValue("riskfx.ai2", String.class).ifPresent(file -> options.put("ai2", file));
     config.getOptionalValue("riskfx.ai4", String.class).ifPresent(file -> options.put("ai4", file));
+    // the settings are kept in a file of the user, which is in the home directory unless the configuration says another
+    options.put("settings", config.getOptionalValue("riskfx.settings", String.class).orElse(Settings.defaultFile().toString()));
     logger.infof("Showing the window for playing and watching, with the options %s", options);
     new PlayApp().show(startupEvent.getPrimaryStage(), options);
   }

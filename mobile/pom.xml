@@ -56,14 +56,14 @@
                     <mainClass>${mainClassName}</mainClass>
                     <target>${gluonfx.target}</target>
                     <!--
-                      The files that are read from the class path, which a native image only has if they are listed. The patterns are
-                      written into a json file as they are, so they must not have a backslash, which is not allowed in it: [.] is a dot.
-                      The ttf of the icon font (Ikonli) needs no entry, since the plugin includes that and a few other extensions on its own.
+                      The files that are read from the class path, which a native image only has if they are listed. The plugin includes
+                      some extensions on its own (among them json, css, ttf and png), so only what it doesn't is listed: the networks of the AI, and the
+                      defaults of the settings.
+                      A pattern is written into a json file as it is, so it must not have a backslash, which is not allowed in it: [.] is a dot.
                     -->
                     <resourcesList>
-                        <list>.*[.]json$</list>
                         <list>.*[.]weights$</list>
-                        <list>.*[.]css$</list>
+                        <list>.*defaults[.]properties$</list>
                     </resourcesList>
                     <appIdentifier>no.hal.riskfx</appIdentifier>
                     <!--

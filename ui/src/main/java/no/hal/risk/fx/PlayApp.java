@@ -103,6 +103,8 @@ public class PlayApp extends Application {
   // setting up a new game, on the table: the kind of each seat (null if it is empty), the map, and the buttons in the middle
   private final PlayerKind[] seatKinds = {PlayerKind.HUMAN, PlayerKind.AI, null, null};
   private GameMap chosenMap = GameMap.CLASSIC;
+  /** The settings that are kept between runs, which are the defaults if there is no file for them. */
+  private Settings settings = new Settings(null);
   /** Whether the game that was started has been stopped, which is like it being over: nothing more is played, and a new one can be set up. */
   private boolean stopped;
   /** Whether the bots play on by themselves, or are paused. */
@@ -164,14 +166,18 @@ public class PlayApp extends Application {
   /** Used when started as a JavaFX application, by {@link PlayLauncher}. */
   @Override
   public void start(Stage stage) {
-    show(stage, getParameters().getNamed());
+    // the settings are kept in a file of the user, unless another is given
+    var options = new HashMap<>(getParameters().getNamed());
+    options.putIfAbsent("settings", Settings.defaultFile().toString());
+    show(stage, options);
   }
 
   /**
    * Shows the window in a stage and starts a game.
    *
    * @param options {@code ai2} and {@code ai4} are files with trained networks, for games of two players and of three or four,
-   *   which are those in the application if they are not given
+   *   which are those in the application if they are not given, and {@code settings} is the file where the settings are kept between runs,
+   *   which they are not if it isn't given
    */
   public void show(Stage stage, Map<String, String> options) {
     show(stage, options, true);
@@ -223,6 +229,7 @@ public class PlayApp extends Application {
     System.setProperty("ai.djl.pytorch.num_threads", System.getProperty("ai.djl.pytorch.num_threads", "4"));
     aiNetworks = new AiNetworks(options.containsKey("ai2") ? Path.of(options.get("ai2")) : null,
         options.containsKey("ai4") ? Path.of(options.get("ai4")) : null);
+    settings = new Settings(options.containsKey("settings") ? Path.of(options.get("settings")) : null);
     stage.setScene(fillWindow ? new Scene(createContent()) : new Scene(createContent(), 1100, 860));
     stage.setTitle("RiskFx");
     stage.setOnCloseRequest(_ -> {
@@ -254,6 +261,7 @@ public class PlayApp extends Application {
       botMove();
     });
 
+    loadSetup();
     createControls();
     var root = new BorderPane();
     // the stylesheet, which is also a resource of the application that must be in the native build: a missing one is only a plainer look
@@ -380,25 +388,87 @@ public class PlayApp extends Application {
     return new BoundingBox(x, y, Math.max(width, 0), Math.max(height, 0));
   }
 
+  /** Keeps the setting of a check box: it is saved when it is changed. */
+  private void remember(CheckBox box, String key) {
+    box.selectedProperty().addListener((_, _, selected) -> settings.set(key, selected));
+  }
+
+  /** The seats and the map as they were saved, or as the defaults say if they can't be used. */
+  private void loadSetup() {
+    var kinds = new PlayerKind[seatKinds.length];
+    int taken = 0;
+    for (int i = 0; i < kinds.length; i++) {
+      kinds[i] = seatKindFromSetting(settings.get("game.seat" + (i + 1)));
+      if (kinds[i] != null) {
+        taken++;
+      }
+    }
+    if (taken < GameSetup.MIN_PLAYERS) {
+      // a game needs players: the defaults are used, which are good
+      for (int i = 0; i < kinds.length; i++) {
+        kinds[i] = seatKindFromSetting(settings.getDefault("game.seat" + (i + 1)));
+      }
+    }
+    System.arraycopy(kinds, 0, seatKinds, 0, kinds.length);
+    chosenMap = GameMap.all().stream().filter(map -> map.name().equals(settings.get("game.map"))).findFirst().orElse(GameMap.CLASSIC);
+  }
+
+  /** The kind of player with the name, or null for none, which is also what a name that isn't one of the kinds is. */
+  private static PlayerKind seatKindFromSetting(String name) {
+    for (var kind : PlayerKind.values()) {
+      if (kind.name().equals(name)) {
+        return kind;
+      }
+    }
+    return null;
+  }
+
+  /** Saves who plays in the seats. */
+  private void rememberSeats() {
+    for (int i = 0; i < seatKinds.length; i++) {
+      settings.set("game.seat" + (i + 1), seatKinds[i] == null ? "off" : seatKinds[i].name());
+    }
+  }
+
   /** The controls of the settings and of the bar, which are made first, since they work together. */
   private void createControls() {
     showNamesBox = new CheckBox("Show territory names");
-    showNamesBox.setSelected(true);
+    showNamesBox.setSelected(settings.getBoolean("view.showNames"));
     showNamesBox.selectedProperty().subscribe(show -> worldView.setShowNames(show));
+    remember(showNamesBox, "view.showNames");
     showRegionsBox = new CheckBox("Show regions");
+    showRegionsBox.setSelected(settings.getBoolean("view.showRegions"));
     showRegionsBox.selectedProperty().subscribe(show -> worldView.setShowRegions(show));
+    remember(showRegionsBox, "view.showRegions");
     editLabelsBox = new CheckBox("Edit label places");
     editLabelsBox.setTooltip(new Tooltip("Drag the number and name of a territory to move them, and double-click to put them back. "
         + "When switched off, the places can be saved for the map generator. Only for maps that have a file for it."));
     editLabelsBox.selectedProperty().addListener((_, _, editing) -> editLabelsChanged(editing));
     keepArmiesBackBox = new CheckBox("Keep armies back");
+    keepArmiesBackBox.setSelected(settings.getBoolean("rules.keepArmiesBack"));
+    remember(keepArmiesBackBox, "rules.keepArmiesBack");
     keepArmiesBackBox.setTooltip(new Tooltip("After a conquest, move in as many armies as you choose, but at least as many as dice were rolled. Bots move in all they can."));
     eliminationBonusBox = new CheckBox("Bonus for eliminating a player");
+    eliminationBonusBox.setSelected(settings.getBoolean("rules.eliminationBonus"));
+    remember(eliminationBonusBox, "rules.eliminationBonus");
     eliminationBonusBox.setTooltip(new Tooltip("%d more armies the next turn for each player you eliminated.".formatted(Risk.ELIMINATION_BONUS)));
     conquestBonusBox = new CheckBox("Bonus after conquest");
+    conquestBonusBox.setSelected(settings.getBoolean("rules.conquestBonus"));
+    remember(conquestBonusBox, "rules.conquestBonus");
     conquestBonusBox.setTooltip(new Tooltip("A turn gives %d armies and the continent bonuses, and %d more if a territory was conquered the turn before.".formatted(Risk.ALWAYS_REINFORCEMENT, Risk.CONQUEST_BONUS)));
-    speedSlider = new Slider(0, 100, 70);
+    speedSlider = new Slider(0, 100, settings.getDouble("view.speed"));
     speedSlider.setPrefWidth(160);
+    // saved when the slider is let go, not for each step of the drag
+    speedSlider.valueChangingProperty().addListener((_, _, changing) -> {
+      if (! changing) {
+        settings.set("view.speed", String.valueOf(Math.round(speedSlider.getValue())));
+      }
+    });
+    speedSlider.valueProperty().addListener((_, _, value) -> {
+      if (! speedSlider.isValueChanging()) {
+        settings.set("view.speed", String.valueOf(Math.round(value.doubleValue())));
+      }
+    });
     speedSlider.setTooltip(new Tooltip("Speed of the bots"));
   }
 
@@ -571,6 +641,7 @@ public class PlayApp extends Application {
       choice.setMinWidth(130);
       choice.setOnAction(_ -> {
         chosenMap = map;
+        settings.set("game.map", map.name());
         updateMapButton();
         popup.hide();
       });
@@ -842,6 +913,7 @@ public class PlayApp extends Application {
           changePlayer(seat, kind);
         } else {
           seatKinds[seat] = kind;
+          rememberSeats();
           updateTransport();
           updateStatus();
         }
@@ -893,6 +965,7 @@ public class PlayApp extends Application {
   /** Shows a setup in the seats: the kind of each. */
   private void showSetup(GameSetup shown) {
     System.arraycopy(shown.seatKinds(), 0, seatKinds, 0, seatKinds.length);
+    rememberSeats();
     updateTransport();
   }
 
@@ -932,6 +1005,7 @@ public class PlayApp extends Application {
     editLabelsBox.setSelected(false);
     currentMap = map;
     chosenMap = map;
+    settings.set("game.map", map.name());
     updateMapButton();
     editLabelsBox.setDisable(map.labelOffsetsFile() == null);
     var bots = new ArrayList<Bot>();
