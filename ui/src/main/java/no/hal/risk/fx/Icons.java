@@ -3,6 +3,7 @@ package no.hal.risk.fx;
 import java.io.ByteArrayInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
@@ -11,6 +12,7 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
@@ -21,6 +23,8 @@ import org.kordamp.ikonli.javafx.FontIcon;
  * <p>
  * The icons are given by name, see the constants, which are the names the font has: <a href="https://pictogrammers.com/library/mdi/">
  * pictogrammers.com/library/mdi</a>, with the prefix mdi2 and the first letter of the name, as in {@code mdi2p-play}.
+ * The network, which is the AI, is not in that set, but in a font of our own, made from an SVG file (see tools/icons): {@link #NETWORK}.
+ * It is loaded the same way as the other font, and drawn as a text, since Ikonli only knows the fonts it has a handler for.
  * The two icons {@link #networkDrawn} and {@link #robotDrawn} are drawn as shapes instead, and are kept to be used again.
  */
 public final class Icons {
@@ -35,46 +39,71 @@ public final class Icons {
   public static final String SKIP = "mdi2s-skip-next";
   public static final String HELP = "mdi2h-help-circle-outline";
   public static final String HUMAN = "mdi2a-account";
-  /** The AI, which is a neural network, is shown as a brain. */
-  public static final String AI = "mdi2b-brain";
+  /** The AI, which is a neural network, is shown as one. It is a glyph of our own font, which is why the name is not one of Ikonli's. */
+  public static final String NETWORK = "riskfx-network";
+  public static final String AI = NETWORK;
+  /** A brain, which the AI used to have. */
+  public static final String BRAIN = "mdi2b-brain";
   public static final String BOT = "mdi2r-robot";
   public static final String OFF = "mdi2b-block-helper";
 
   private static final String FONT_FILE = "/META-INF/resources/materialdesignicons2/5.8.55/fonts/materialdesignicons-webfont.ttf";
+  private static final String OWN_FONT_FILE = "/fonts/riskfx-icons.ttf";
+  /** The characters of the glyphs of our own font. */
+  private static final Map<String, String> OWN_GLYPHS = Map.of(NETWORK, "\ue900");
   private static boolean fontLoaded;
+  private static String ownFamily;
 
   /**
-   * Registers the font by name, which is what an icon says in its style, before the first icon is made. Ikonli loads the font itself from a
+   * Registers the fonts by name, which is what an icon says in its style, before the first icon is made. Ikonli loads its font itself from a
    * url, which gives no font in a native app on Android (the icons are boxes with a cross): JavaFX copies the font to a temporary file
    * first, which fails there, and a stream gives no font either. A file does, so it is tried when a stream
    * (as on the desktop) gives no font: the font is written to a file in the temporary directory, which is the private directory of the app.
    */
-  private static void loadFont() {
+  private static void loadFonts() {
     if (fontLoaded) {
       return;
     }
     fontLoaded = true;
+    loadFont(FONT_FILE, "riskfx-mdi2.ttf");
+    var own = loadFont(OWN_FONT_FILE, "riskfx-own.ttf");
+    ownFamily = own != null ? own.getFamily() : null;
+  }
+
+  private static Font loadFont(String resource, String fileName) {
     try {
       byte[] bytes;
-      try (var stream = Icons.class.getResourceAsStream(FONT_FILE)) {
+      try (var stream = Icons.class.getResourceAsStream(resource)) {
         bytes = stream.readAllBytes();
       }
-      if (Font.loadFont(new ByteArrayInputStream(bytes), 16) == null) {
+      var font = Font.loadFont(new ByteArrayInputStream(bytes), 16);
+      if (font == null) {
         // the file stays, since the font may be read from it later, and is replaced the next time
-        var file = Path.of(System.getProperty("java.io.tmpdir"), "riskfx-icons.ttf");
+        var file = Path.of(System.getProperty("java.io.tmpdir"), fileName);
         Files.write(file, bytes);
-        if (Font.loadFont(file.toUri().toString(), 16) == null) {
-          System.err.println("The icon font could not be loaded, so the icons are boxes");
-        }
+        font = Font.loadFont(file.toUri().toString(), 16);
       }
+      if (font == null) {
+        System.err.println("The icon font " + resource + " could not be loaded, so its icons are boxes");
+      }
+      return font;
     } catch (Exception e) {
-      System.err.println("The icon font could not be loaded, so the icons are boxes: " + e);
+      System.err.println("The icon font " + resource + " could not be loaded, so its icons are boxes: " + e);
+      return null;
     }
   }
 
   /** The icon with the name (as the constants are) at the size, which is the height of it in pixels, and in the color. */
   public static Node of(String name, double size, Paint color) {
-    loadFont();
+    loadFonts();
+    var glyph = OWN_GLYPHS.get(name);
+    if (glyph != null) {
+      // the font is made so that the glyph fills the height of it, and the size of the icon is the size of the font
+      var text = new Text(glyph);
+      text.setFont(ownFamily != null ? Font.font(ownFamily, size) : Font.font(size));
+      text.setFill(color);
+      return text;
+    }
     var icon = new FontIcon(name);
     icon.setIconSize((int) Math.round(size));
     icon.setIconColor(color);
@@ -82,7 +111,7 @@ public final class Icons {
   }
 
   /**
-   * The icon of what controls a player: a person for a human, a brain for the AI, a robot for a bot that follows rules,
+   * The icon of what controls a player: a person for a human, a network for the AI, a robot for a bot that follows rules,
    * and a crossed circle for no player, which is null.
    */
   public static Node forKind(PlayerKind kind, double size, Paint color) {
@@ -97,7 +126,7 @@ public final class Icons {
   }
 
   /**
-   * A small neural network, drawn as shapes (the AI used to have it, and {@link #AI} is used now):  three layers of three dots, with each dot joined to all the dots of the next layer.
+   * A small neural network, drawn as shapes (the AI used to have it, and {@link #NETWORK} is used now):  three layers of three dots, with each dot joined to all the dots of the next layer.
    */
   public static Node networkDrawn(double size, Paint color) {
     double[] columns = {0.12, 0.5, 0.88};

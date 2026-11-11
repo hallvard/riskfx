@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The icon of the game: the world as a few straight-edged continents, in the colors of the classic map, outlined, on the sea.
+     make_icons.py makes the launcher icons of the Android app and the icon of the window from it. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f5d8c"/>
+      <stop offset="1" stop-color="#17324f"/>
+    </linearGradient>
+    <g id="land" stroke="#1c1c1c" stroke-width="12" stroke-linejoin="round">
+      <!-- North America and Greenland -->
+      <polygon fill="#dcdc22" points="46,110 92,88 140,86 196,82 232,98 246,126 300,148 274,190 238,222 222,250 198,278 186,262 164,244 140,238 126,196 106,160"/>
+      <polygon fill="#dcdc22" points="270,52 318,48 346,58 322,118 296,138 280,108"/>
+      <!-- South America -->
+      <polygon fill="#ee4422" points="196,300 228,292 280,298 322,338 296,372 262,420 244,486 226,474 218,424 200,382 192,336"/>
+      <!-- Europe -->
+      <polygon fill="#48c0dc" points="342,220 348,196 376,180 394,130 430,106 478,106 520,98 516,178 492,220 448,222 408,208 392,250 356,248"/>
+      <!-- Africa -->
+      <polygon fill="#9a7400" points="354,330 364,296 410,282 450,296 494,300 530,350 498,388 466,440 450,486 436,440 440,396 410,360 358,356"/>
+      <!-- Asia -->
+      <polygon fill="#88dc88" points="456,258 506,186 540,148 536,92 590,66 650,68 726,92 712,136 678,196 654,254 646,292 614,306 596,262 566,330 540,298 510,326 478,308"/>
+      <!-- Indonesia and Australia -->
+      <polygon fill="#a01aaa" points="618,372 652,358 668,380 640,402 612,396"/>
+      <polygon fill="#a01aaa" points="648,424 684,404 722,396 748,432 716,474 664,462"/>
+    </g>
+    <g id="borders" fill="none" stroke="#1c1c1c" stroke-width="5.5" stroke-linecap="round">
+      <polyline points="92,88 112,138 190,132 196,82"/>
+      <polyline points="112,138 126,196"/>
+      <polyline points="190,132 214,176 250,170"/>
+      <polyline points="236,320 256,350 300,360"/>
+      <polyline points="410,282 420,330 466,350"/>
+      <polyline points="466,350 462,392"/>
+      <polyline points="590,66 584,140 620,176 614,250"/>
+      <polyline points="584,140 536,180"/>
+      <polyline points="620,176 690,196"/>
+      <polyline points="430,106 440,170 492,172"/>
+    </g>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#sea)"/>
+  <!-- the map is wider than the icon is, so it is scaled down and moved to the middle -->
+  <g transform="translate(2 85) scale(0.64)">
+    <use href="#land"/>
+    <use href="#borders"/>
+  </g>
+</svg>

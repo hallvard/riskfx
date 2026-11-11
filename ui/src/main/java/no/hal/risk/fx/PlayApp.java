@@ -29,10 +29,12 @@ import javafx.scene.text.Text;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.image.Image;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
@@ -232,6 +234,7 @@ public class PlayApp extends Application {
     settings = new Settings(options.containsKey("settings") ? Path.of(options.get("settings")) : null);
     stage.setScene(fillWindow ? new Scene(createContent()) : new Scene(createContent(), 1100, 860));
     stage.setTitle("RiskFx");
+    stage.getIcons().add(new Image(PlayApp.class.getResourceAsStream("/app-icon.png")));
     stage.setOnCloseRequest(_ -> {
       timer.stop();
       if (exitOnClose) {
