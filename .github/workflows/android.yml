@@ -1,4 +1,4 @@
-name: "Android, changed 2026-11-11T09:36"
+name: "Android, changed 2026-11-13T09:36"
 
 # Builds the native Android app (an apk) with Gluon, which can only be done on Linux. It takes a while, so it is only started when this file is
 # changed and pushed to main, or by hand (Actions, Android, Run workflow, or gh workflow run android.yml), and the apk is a file of the run. It follows the setup of halban (the sokoban app).
@@ -10,6 +10,9 @@ name: "Android, changed 2026-11-11T09:36"
 # replaced each time, so https://github.com/<owner>/<repo>/releases/download/latest/riskfx.apk is always the newest.
 # Secrets: ANDROID_KEYSTORE_BASE64 (the keystore file, base64), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD.
 # Without them, the app is signed with a debug key, which is different for each build.
+# When the secret NTFY_TOPIC is set, the end of the build is sent as a notification through ntfy.sh (the ntfy app on the phone, subscribed to
+# the topic): tapping it opens the apk to download when the build worked, and the run when it failed, and the message has the link too.
+# The topic is the only secret of a topic on ntfy.sh, so it should be a long name that can't be guessed.
 
 on:
   workflow_dispatch:
@@ -122,3 +125,25 @@ jobs:
             ~/.gluon
             ~/.gradle
           key: android-${{ hashFiles('**/pom.xml') }}
+
+      - name: Notify the phone
+        if: always()
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          STATUS: ${{ job.status }}
+        run: |
+          [ -n "$NTFY_TOPIC" ] || exit 0
+          repo_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          if [ "$STATUS" = "success" ]; then
+            title="riskfx build ${{ github.run_number }} is ready"
+            link="$repo_url/releases/download/latest/riskfx.apk"
+            text="Download: $link"
+            tags="white_check_mark"
+          else
+            title="riskfx build ${{ github.run_number }}: $STATUS"
+            link="$repo_url/actions/runs/${{ github.run_id }}"
+            text="The run: $link"
+            tags="x"
+          fi
+          message=$(printf '%s\n%s %s' "$text" "${GITHUB_SHA::7}" "$(git log -1 --format=%s 2>/dev/null)")
+          curl -sS -H "Title: $title" -H "Click: $link" -H "Tags: $tags" -d "$message" "https://ntfy.sh/$NTFY_TOPIC" || true
